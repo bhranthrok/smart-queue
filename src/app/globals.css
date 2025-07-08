@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
+@plugin 'tailwind-scrollbar' {
+  nocompatible: true;
+}
+
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #121212;
 }
 
 @theme inline {
@@ -10,17 +14,124 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  --color-my-black: #121212;
+  --color-my-black-accent: #1f1f1f;
+  --color-my-lighter-black: #2a2a2a;
+  --color-my-progress-bar-background: #4d4d4d;
+  --color-my-green: #1ed760;
+  --color-my-gray: #b3b3b3;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #000;
+    --foreground: #fff;
   }
 }
 
 body {
+  margin:0;
+  padding:0;
+  height: 100%;
+  overflow: hidden;
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Progress Bar */
+
+input[type="range"].appearance-none::-webkit-slider-runnable-track {
+  height: 0; /* Hide native track */
+  background: transparent;
+}
+
+input[type="range"].appearance-none::-moz-range-track {
+  height: 0;
+  background: transparent;
+}
+
+input[type="range"].appearance-none::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 9999px;
+  background-color: white;
+  cursor: pointer;
+  margin-top: -6px; /* center thumb vertically */
+  position: relative;
+  z-index: 20;
+}
+
+input[type="range"].appearance-none::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 9999px;
+  background-color: #fff;
+  border: 2px solid #1ed760;
+  cursor: pointer;
+  position: relative;
+  z-index: 20;
+}@utility mask-to-t {
+  mask: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.2) 25%,
+    rgba(0, 0, 0, 0.5) 50%,
+    rgba(0, 0, 0, 0.8) 75%,
+    rgba(0, 0, 0, 1) 100%
+  );
+}@utility mask-to-t {
+  mask: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.2) 25%,
+    rgba(0, 0, 0, 0.5) 50%,
+    rgba(0, 0, 0, 0.8) 75%,
+    rgba(0, 0, 0, 1) 100%
+  );
+}
+
+/* Loader */
+.loader {
+  width: 45px;
+  aspect-ratio: 1;
+  --c: no-repeat linear-gradient(#1ed760 0 0);
+  background: 
+    var(--c) 0%   50%,
+    var(--c) 50%  50%,
+    var(--c) 100% 50%;
+  background-size: 20% 100%;
+  animation: l1 1s infinite linear;
+}
+@keyframes l1 {
+  0%  {background-size: 20% 100%,20% 100%,20% 100%}
+  33% {background-size: 20% 10% ,20% 100%,20% 100%}
+  50% {background-size: 20% 100%,20% 10% ,20% 100%}
+  66% {background-size: 20% 100%,20% 100%,20% 10% }
+  100%{background-size: 20% 100%,20% 100%,20% 100%}
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #5a5a5a transparent; /* fallback for Firefox */
+}
+.custom-scrollbar:hover {
+  scrollbar-color: #717171 transparent; /* fallback for Firefox */
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: linear-gradient(to bottom, #1a1a1a, #121212, #121212); /* example gradient */
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #1DB954;
+  border-radius: 10px;
 }
