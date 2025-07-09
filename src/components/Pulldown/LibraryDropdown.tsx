@@ -14,7 +14,7 @@ const LibraryDropdown = () => {
       
       {/* Arrow Button + Sliding Movement */}
       <div
-        className={`relative z-30 flex w-full justify-center transition-transform duration-500 ease-in-out ${
+        className={`relative z-10 flex w-full justify-center transition-transform duration-500 ease-in-out ${
           isActive ? "translate-y-[70vh]" : "translate-y-14"
         }`}
       >
@@ -47,7 +47,7 @@ const LibraryDropdown = () => {
         <div className="text-lg font-semibold mt-8 flex justify-center items-center w-[98vw] h-[62vh] mx-auto gap-4">
             {/* User Library */}
             <section className="bg-gradient-to-b from-my-lighter-black via-my-black to-my-black h-full w-1/3 rounded-4xl overflow-hidden">
-                <h1 className="ml-6 mt-3">Your Library</h1>
+                <h1 className="ml-5 mt-3">Your Library</h1>
                 <div className="max-h-[58vh] rounded-xl overflow-y-scroll custom-scrollbar">
                   <YourLibrary setSelectedPlaylist={setSelectedPlaylist}/>
                 </div>
@@ -60,8 +60,10 @@ const LibraryDropdown = () => {
             {/* Customize */}
             <section className="bg-gradient-to-b from-my-lighter-black via-my-black to-my-black h-full w-1/3 rounded-4xl">
                 <h1 className="ml-6 mt-3">Customize</h1>
-                <div className="max-h-[60vh] rounded-xl overflow-y-scroll">
-
+                <div className="max-h-[60vh] rounded-xl overflow-y-scroll custom-scrollbar">
+                    <p className="ml-6 mt-3 text-sm text-gray-400">
+                        This section is under development. Stay tuned for more features!
+                    </p>
                 </div>
             </section>
         </div>

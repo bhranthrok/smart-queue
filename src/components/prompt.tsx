@@ -1,3 +1,5 @@
+'use client'
+
 import { useMemo } from "react";
 
 const Prompt = ({ onChange }: { onChange: (val: string) => void }) => {

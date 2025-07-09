@@ -1,4 +1,4 @@
-"use-client"
+"use client"
 // Discover
 // Recently Played
 // Top Artists
@@ -19,7 +19,7 @@ const CenterPanel: React.FC<CenterPanelProps> = ({ selectedPlaylist }) => {
             {selectedPlaylist ? (
                 <PlaylistDisplay playlistId={selectedPlaylist} />
             ) : (
-                <p>Select a playlist to display.</p>
+                <p className='mt-4 ml-5'>Select a playlist to display</p>
             )}
         </div>
     );

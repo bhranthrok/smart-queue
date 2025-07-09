@@ -18,6 +18,7 @@ interface YourLibraryProps {
 
 const YourLibrary = ({ setSelectedPlaylist }: YourLibraryProps) => {
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
+    const [initialSelected, setInitialSelected] = useState(false);
 
     const getPlaylists = async () => {
         const token = localStorage.getItem("spotify_access_token");
@@ -71,20 +72,23 @@ const YourLibrary = ({ setSelectedPlaylist }: YourLibraryProps) => {
 
     useEffect(() => {
         getPlaylists();
-    
-    }, []);
+        if (!initialSelected && playlists.length > 0) { // Sets initial selected playlist
+            setInitialSelected(true);
+          setSelectedPlaylist(playlists[0].id);
+        }
+    }, [playlists, setSelectedPlaylist, initialSelected]);
 
     return (
-        <div>
+        <div className="ml-3">
           {playlists.map((playlist) => (
             <div
               key={playlist.id}
-              className="flex items-center p-2 hover:bg-my-lighter-black hover:cursor-pointer rounded-lg m-2"
+              className="flex items-center hover:bg-my-lighter-black hover:cursor-pointer rounded-lg m-2"
               onClick={() => setSelectedPlaylist(playlist.id)}
             >
               {playlist.images[0] ? (
                 <div
-                  className="relative w-[50px] h-[50px] mr-4 group"
+                  className="relative w-[60px] h-[60px] mr-4 group"
                   onClick={() => {
                     playThis(playlist.uri)
                   }}
@@ -92,8 +96,8 @@ const YourLibrary = ({ setSelectedPlaylist }: YourLibraryProps) => {
                   <Image
                     src={playlist.images[0].url}
                     alt={playlist.name}
-                    width={50}
-                    height={50}
+                    width={60}
+                    height={60}
                     className="rounded-md object-cover w-full h-full"
                   />
                   {/* Overlay on hover */}
@@ -116,7 +120,7 @@ const YourLibrary = ({ setSelectedPlaylist }: YourLibraryProps) => {
       
               <div>
                 <p className="font-normal text-pretty">{playlist.name}</p>
-                <p className="text-sm text-my-gray">{playlist.tracks.total} songs</p>
+                <p className="text-sm font-normal text-my-gray">{playlist.tracks.total} songs</p>
               </div>
             </div>
           ))}

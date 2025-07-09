@@ -1,4 +1,4 @@
-"use-client"
+"use client"
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
@@ -94,21 +94,23 @@ const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
                     <h1 className="ml-5 font-bold text-3xl truncate">{playlist.name}</h1>
                 </div>
                 {/* Tracks */}
-                <div className="">
+                <div className="ml-3 mt-5">
                     {playlist.tracks.items.map(({ track }) => (
-                        <div key={track.id} onClick={() => playTrackInPlaylist(track.uri, playlist.uri)} className="flex items-center p-2 hover:bg-my-lighter-black hover:cursor-pointer rounded-lg m-2">
+                        <div key={track.id} onClick={() => playTrackInPlaylist(track.uri, playlist.uri)} className="flex items-center p-1 hover:bg-my-lighter-black hover:cursor-pointer rounded-lg m-2">
                             {track.album.images[0] && (
+                                <>
                                 <Image
                                     src={track.album.images[0].url}
                                     alt={track.name}
-                                    width={50}
-                                    height={50}
-                                    className="rounded-md object-cover w-[50px] h-[50px] mr-4"
+                                    width={60}
+                                    height={60}
+                                    className="rounded-sm object-cover w-[40px] h-[40px] mr-4"
                                 />
+                            </>
                             )}
                             <div>
-                                <p className="font-semibold">{track.name}</p>
-                                <p className="text-sm text-gray-400">{track.artists.map(artist => artist.name).join(", ")}</p>
+                                <p className="text-sm font-semibold">{track.name}</p>
+                                <p className="text-xs text-gray-400">{track.artists.map(artist => artist.name).join(", ")}</p>
                             </div>
                         </div>
                     ))}

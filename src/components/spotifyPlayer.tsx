@@ -83,7 +83,8 @@ export default function SpotifyPlayer() {
               volume: 0.5
             });
 
-            playerRef.current = player;
+            // Turned off cause annoying during dev
+            //playerRef.current = player;
 
             // Ready
             player.addListener('ready', ({ device_id } : {device_id:string}) => {
