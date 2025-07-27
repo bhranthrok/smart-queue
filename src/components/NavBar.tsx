@@ -1,8 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import SearchBar from './SearchBar';
 import LogOut from '/public/log-out1.svg';
+import { supabase } from '../../lib/supabase';
+import { getSpotifyAccessToken } from '../../lib/auth';
+import Image from 'next/image';
+import { playThis } from '../../lib/utils';
 
 interface Track {
     id: string;
@@ -25,59 +29,97 @@ interface Album {
     uri: string;
 }
 
-interface Playlist {
-    id: string;
-    name: string;
-    description: string;
-    images: { url: string }[];
-    uri: string;
-}
-
 interface searchResult {
     tracks: { items: Track[] }
     artists: { items: Artist[] }
     albums: { items: Album[] }
-    playlists: { items: Playlist[] }
 }
 
 export default function NavBar({ signedIn }: { signedIn: boolean }) {
     const [searchResults, setSearchResults] = useState<searchResult | null>(null);
-    const [searchFilter, setSearchFilter] = useState<'tracks' | 'artists' | 'albums' | 'playlists'>('tracks');
+    const [searchFilter, setSearchFilter] = useState<'tracks' | 'artists' | 'albums'>('tracks');
     const [isSearchBarFocused, setIsSearchBarFocused] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
         console.log("Logging out...");
+        await supabase.auth.signOut();
         localStorage.removeItem("spotify_access_token");
-        localStorage.removeItem("spotify_code_verifier");
         window.location.href = "/";
     }
 
-    const handleSearch = (query : string) => {
-        const token = localStorage.getItem("spotify_access_token");
-        if (!token) {
-            console.error("No access token found");
-            return;
+    // Debounced search function
+    const debouncedSearch = useCallback(
+        (() => {
+            let timeoutId: NodeJS.Timeout;
+            return async (query: string) => {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(async () => {
+                    if (query.trim().length === 0) {
+                        setSearchResults(null);
+                        return;
+                    }
+                    
+                    const token = await getSpotifyAccessToken();
+                    if (!token) {
+                        console.error("No access token found");
+                        return;
+                    }
+                    
+                    console.log("Searching for: ", query);
+                    fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track,artist,album`, {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Error fetching search results: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log("Search results: ", data);
+                        setSearchResults(data);
+                    })
+                    .catch(error => {
+                        console.error("Failed to fetch search results", error);
+                    });
+                }, 300); // 300ms delay
+            };
+        })(),
+        []
+    );
+
+    // Update search when query changes
+    useEffect(() => {
+        debouncedSearch(searchQuery);
+    }, [searchQuery, debouncedSearch]);
+
+    // Detects clicks outside the search dropdown
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as HTMLElement;
+            
+            // Check if click is outside the search dropdown and search bar
+            if (!target.closest('.search-dropdown') && !target.closest('.search-bar')) {
+                setIsSearchBarFocused(false);
+            }
+        };
+
+        // Only add listener when search is focused
+        if (isSearchBarFocused) {
+            document.addEventListener('mousedown', handleClickOutside);
         }
-        console.log("Searching for: ", query);
-        fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}`, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`Error fetching search results: ${response.statusText}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log("Search results: ", data);
-            // Handle search results here, e.g., update state or display results
-            setSearchResults(data);
-        })
-        .catch(error => {
-            console.error("Failed to fetch search results", error);
-        })
+
+        // Cleanup
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isSearchBarFocused]);
+
+    const handleSearch = (query: string) => {
+        setSearchQuery(query);
     };
 
     return (
@@ -89,43 +131,78 @@ export default function NavBar({ signedIn }: { signedIn: boolean }) {
                     <>
                         <SearchBar setSearchBarFocused={setIsSearchBarFocused} onChange={handleSearch}/>
                         {isSearchBarFocused && (
-                            <div className='absolute h-[45vh] w-[25rem] mt-2 bg-my-black rounded-md'>
+                            <div className='search-dropdown absolute h-[45vh] w-[25rem] mt-2 bg-my-black/95 border border-my-black-accent rounded-md shadow-lg overflow-hidden'>
                                 {/* Filter Buttons */}
-                                <div className='flex flex-col items-center h-auto w-auto mt-2 mx-2 text-sm'>
-                                    <button onClick={() => setSearchFilter('tracks')} className="px-2 py-1 bg-my-black-accent rounded-full hover:bg-my-lighter-black hover:cursor-pointer">Tracks</button>
-                                    <button onClick={() => setSearchFilter('artists')} className="px-2 py-1 bg-my-black-accent rounded-full hover:bg-my-lighter-black hover:cursor-pointer">Artists</button>
-                                    <button onClick={() => setSearchFilter('albums')} className="px-2 py-1 bg-my-black-accent rounded-full hover:bg-my-lighter-black hover:cursor-pointer">Albums</button>
-                                    <button onClick={() => setSearchFilter('playlists')} className="px-2 py-1 bg-my-black-accent rounded-full hover:bg-my-lighter-black hover:cursor-pointer">Playlists</button>
+                                <div className='flex items-center gap-2 h-auto w-auto mt-2 mx-2 text-sm'>
+                                    <button 
+                                        onClick={() => setSearchFilter('tracks')} 
+                                        className={`px-2 py-1 rounded-full hover:bg-my-lighter-black hover:cursor-pointer bg-my-lighter-black ${
+                                            searchFilter === 'tracks' ? 'border border-white' : ''
+                                        }`}
+                                        tabIndex={0}
+                                    >
+                                        Tracks
+                                    </button>
+                                    <button 
+                                        onClick={() => setSearchFilter('artists')} 
+                                        className={`px-2 py-1 rounded-full hover:bg-my-lighter-black hover:cursor-pointer bg-my-lighter-black ${
+                                            searchFilter === 'artists' ? 'border border-white' : ''
+                                        }`}
+                                        tabIndex={0}
+                                    >
+                                        Artists
+                                    </button>
+                                    <button 
+                                        onClick={() => setSearchFilter('albums')} 
+                                        className={`px-2 py-1 rounded-full hover:bg-my-lighter-black hover:cursor-pointer bg-my-lighter-black ${
+                                            searchFilter === 'albums' ? 'border border-white' : ''
+                                        }`}
+                                        tabIndex={0}
+                                    >
+                                        Albums
+                                    </button>
                                 </div>
                                 {/* Search Results */}
-                                <div className='overflow-y-scroll custom-scrollbar h-[35vh] w-full mt-2'>
+                                <div className='overflow-y-scroll custom-scrollbar h-[40vh] w-full mt-2'>
                                     
-                                    {/* From now on the result variable holds the relevant array of results*/}
+                                    {/* The searchResults[searchFilter].items array contains the relevant results */}
 
                                     {searchResults && searchResults[searchFilter]?.items.length > 0 ? (
                                     searchResults[searchFilter].items.map((result, index) => (
                                         <div
                                         key={result.id || index}
                                         className="p-2 hover:bg-my-lighter-black hover:cursor-pointer"
-                                        >
+                                        onClick={() => playThis(result.uri)}>
                                         {searchFilter === 'tracks' && (
-                                            <p>
-                                            {result.name} by{" "}
-                                            {(result as Track).artists.map((artist) => artist.name).join(", ")}
-                                            </p>
+                                            <div className="flex items-center gap-2">
+                                                {((result as Track).album.images[0]?.url) && (
+                                                    <Image src={(result as Track).album.images[0].url} alt="" width={60} height={60} className="w-10 h-10 rounded-sm" />
+                                                )}
+                                                <p>{result.name} by {(result as Track).artists.map((artist) => artist.name).join(", ")}</p>
+                                            </div>
                                         )}
-                                        {searchFilter === 'artists' && <p>{(result as Artist).name}</p>}
+                                        {searchFilter === 'artists' && (
+                                            <div className="flex items-center gap-2">
+                                                {((result as Artist).images[2]?.url || (result as Artist).images[0]?.url) && (
+                                                    <Image src={(result as Artist).images[2]?.url || (result as Artist).images[0]?.url} alt="" width={60} height={60} className="w-10 h-10 rounded-full" />
+                                                )}
+                                                <p>{(result as Artist).name}</p>
+                                            </div>
+                                            )}
+
                                         {searchFilter === 'albums' && (
-                                            <p>{(result as Album).name}</p>
-                                        )}
-                                        {searchFilter === 'playlists' && (
-                                            <p>{(result as Playlist).name}</p>
+                                            <div className="flex items-center gap-2">
+                                                {((result as Album).images[0]?.url) && (
+                                                    <Image src={(result as Album).images[0].url} alt="" width={60} height={60} className="w-10 h-10 rounded-sm" />
+                                                )}
+                                                <p>{(result as Album).name}</p>
+                                            </div>
                                         )}
                                         </div>
                                     ))
-                                    )  : (
-                                        <p className="text-center text-gray-500">No results found</p>
-                                    )}
+                                    )  : searchQuery.trim() !== '' ? (
+                                        <p className="text-center text-white">No results found</p>
+                                    ) : null}
 
                                 </div>
                             </div>

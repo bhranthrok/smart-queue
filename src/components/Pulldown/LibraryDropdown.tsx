@@ -59,11 +59,29 @@ const LibraryDropdown = () => {
 
             {/* Customize */}
             <section className="bg-gradient-to-b from-my-lighter-black via-my-black to-my-black h-full w-1/3 rounded-4xl">
-                <h1 className="ml-6 mt-3">Customize</h1>
-                <div className="max-h-[60vh] rounded-xl overflow-y-scroll custom-scrollbar">
-                    <p className="ml-6 mt-3 text-sm text-gray-400">
+                <h1 className="text-3xl mt-15 text-center">Customize</h1>
+                <div className="max-h-[60vh] rounded-xl overflow-hidden">
+                    {/* <p className="ml-6 mt-3 text-sm text-gray-400">
                         This section is under development. Stay tuned for more features!
-                    </p>
+                    </p> */}
+
+                  <h1 className="mt-5 ml-6">Themes</h1>
+                  <div className="flex flex-row justify-between items-center gap-4 px-6 h-30">
+                   <div className="bg-my-black border border-my-gray hover:bg-my-black-accent hover:cursor-pointer rounded-lg aspect-square w-25 min-w-20 text-center"></div>
+                   <div className="bg-my-black border border-my-gray hover:bg-my-black-accent hover:cursor-pointer rounded-lg aspect-square w-25 min-w-20 text-center"></div>
+                   <div className="bg-my-black border border-my-gray hover:bg-my-black-accent hover:cursor-pointer rounded-lg aspect-square w-25 min-w-20 text-center"></div>
+                 </div>
+                <h1 className="mt-4 ml-6">Charms</h1>
+                <div className="grid grid-cols-3 grid-rows-2 gap-4 px-6 py-2">
+                  
+                  <div className="bg-my-black border border-my-gray hover:bg-my-black-accent hover:cursor-pointer rounded-lg aspect-square text-center"></div>
+                  <div className="bg-my-black border border-my-gray hover:bg-my-black-accent hover:cursor-pointer rounded-lg aspect-square text-center"></div>
+                  <div className="bg-my-black border border-my-gray hover:bg-my-black-accent hover:cursor-pointer rounded-lg aspect-square text-center"></div>
+                  <div className="bg-my-black border border-my-gray hover:bg-my-black-accent hover:cursor-pointer rounded-lg aspect-square text-center"></div>
+                  <div className="bg-my-black border border-my-gray hover:bg-my-black-accent hover:cursor-pointer rounded-lg aspect-square text-center"></div>
+                  <div className="bg-my-black border border-my-gray hover:bg-my-black-accent hover:cursor-pointer rounded-lg aspect-square text-center"></div>
+                </div>
+                      
                 </div>
             </section>
         </div>

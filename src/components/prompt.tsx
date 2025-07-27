@@ -25,7 +25,7 @@ const Prompt = ({ onChange }: { onChange: (val: string) => void }) => {
       type="text"
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="transition px-8 py-2.5 w-[50vh] h-[3.5rem] bg-my-black-accent hover:bg-my-lighter-black text-white rounded-full text-sm focus:outline-none focus:ring-1"
+      className="transition px-8 py-2.5 w-[50vh] h-[3.5rem] bg-gradient-to-b from-neutral-800 via-neutral-900 to-my-black hover:bg-my-lighter-black text-white rounded-full text-sm focus:outline-none focus:ring-2"
     />
   );
 };

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { getSpotifyAccessToken } from '../../../../lib/auth';
 
 interface PlaylistDisplayProps {
     playlistId: string;
@@ -26,33 +27,86 @@ interface Playlist {
 
 const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
     const [playlist, setPlaylist] = useState<Playlist>();
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
 
     const getPlaylist = async (playlistID: string) => {
-        const token = localStorage.getItem("spotify_access_token");
+        const token = await getSpotifyAccessToken();
         if (!token) {
-            console.error("No access token found");
+            console.error("No valid access token found");
             return;
         }
         try {
-            const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistID}`, {
+            // First, get the playlist metadata
+            const playlistResponse = await fetch(`https://api.spotify.com/v1/playlists/${playlistID}`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
             });
-            if (!response.ok) {
-                throw new Error(`Error fetching playlist: ${response.statusText}`);
+            if (!playlistResponse.ok) {
+                throw new Error(`Error fetching playlist: ${playlistResponse.statusText}`);
             }
-            const data = await response.json();
-            setPlaylist(data);
-            console.log("Playlist Data: ", data);
+            const playlistData = await playlistResponse.json();
+            
+            // Get first 30 tracks immediately
+            const initialTracksResponse = await fetch(`https://api.spotify.com/v1/playlists/${playlistID}/tracks?limit=30`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            if (!initialTracksResponse.ok) {
+                throw new Error(`Error fetching initial tracks: ${initialTracksResponse.statusText}`);
+            }
+            const initialTracksData = await initialTracksResponse.json();
+            
+            // Show first 30 tracks immediately
+            const initialPlaylistData = {
+                ...playlistData,
+                tracks: { items: initialTracksData.items }
+            };
+            setPlaylist(initialPlaylistData);
+            
+            // If there are more tracks, load them in the background
+            if (initialTracksData.next) {
+                setIsLoadingMore(true);
+                const allTracks = [...initialTracksData.items];
+                let nextUrl = initialTracksData.next;
+                
+                while (nextUrl) {
+                    const tracksResponse = await fetch(nextUrl, {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    });
+                    if (!tracksResponse.ok) {
+                        throw new Error(`Error fetching tracks: ${tracksResponse.statusText}`);
+                    }
+                    const tracksData = await tracksResponse.json();
+                    allTracks.push(...tracksData.items);
+                    nextUrl = tracksData.next;
+                }
+                
+                // Update with all tracks
+                const fullPlaylistData = {
+                    ...playlistData,
+                    tracks: { items: allTracks }
+                };
+                setPlaylist(fullPlaylistData);
+                setIsLoadingMore(false);
+                console.log("Full Playlist Data: ", fullPlaylistData);
+            }
         }
         catch (error) {
             console.error("Failed to fetch playlist", error);
+            setIsLoadingMore(false);
         }
     }
     
     const playTrackInPlaylist = async (trackUri: string, playlistUri: string) => {
-        const token = localStorage.getItem("spotify_access_token");
+        const token = await getSpotifyAccessToken();
+        if (!token) {
+            console.error("No valid access token found");
+            return;
+        }
       
         await fetch("https://api.spotify.com/v1/me/player/play", {
           method: "PUT",
@@ -71,9 +125,9 @@ const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
     
     // Updates Playlist Object once a new playlistID is provided
     useEffect(() => {
-
-        getPlaylist(playlistId);
-
+        if (playlistId && playlistId.trim() !== '') {
+            getPlaylist(playlistId);
+        }
     }, [playlistId]);
 
     return (
@@ -95,25 +149,38 @@ const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
                 </div>
                 {/* Tracks */}
                 <div className="ml-3 mt-5">
-                    {playlist.tracks.items.map(({ track }) => (
-                        <div key={track.id} onClick={() => playTrackInPlaylist(track.uri, playlist.uri)} className="flex items-center p-1 hover:bg-my-lighter-black hover:cursor-pointer rounded-lg m-2">
-                            {track.album.images[0] && (
-                                <>
-                                <Image
-                                    src={track.album.images[0].url}
-                                    alt={track.name}
-                                    width={60}
-                                    height={60}
-                                    className="rounded-sm object-cover w-[40px] h-[40px] mr-4"
-                                />
-                            </>
-                            )}
-                            <div>
-                                <p className="text-sm font-semibold">{track.name}</p>
-                                <p className="text-xs text-gray-400">{track.artists.map(artist => artist.name).join(", ")}</p>
+                    {playlist.tracks.items.map(({ track }, index) => {
+                        // Skip null tracks (unavailable tracks)
+                        if (!track) return null;
+                        
+                        return (
+                            <div key={`${track.id}-${index}`} onClick={() => playTrackInPlaylist(track.uri, playlist.uri)} className="flex items-center p-1 hover:bg-my-lighter-black hover:cursor-pointer rounded-lg m-2">
+                                {track.album?.images?.[0] && (
+                                    <>
+                                    <Image
+                                        src={track.album.images[0].url}
+                                        alt={track.name}
+                                        width={60}
+                                        height={60}
+                                        className="rounded-sm object-cover w-[40px] h-[40px] mr-4"
+                                    />
+                                </>
+                                )}
+                                <div>
+                                    <p className="text-sm font-semibold">{track.name}</p>
+                                    <p className="text-xs text-gray-400">{track.artists?.map(artist => artist.name).join(", ") || "Unknown Artist"}</p>
+                                </div>
                             </div>
+                        );
+                    })}
+                    
+                    {/* Loading indicator for more tracks */}
+                    {isLoadingMore && (
+                        <div className="flex justify-center items-center p-4">
+                            <div className="loader"></div>
+                            <span className="ml-2 text-sm text-gray-400">Loading more tracks...</span>
                         </div>
-                    ))}
+                    )}
                 </div>
                 </>
             )}

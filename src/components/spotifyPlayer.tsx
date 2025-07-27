@@ -4,62 +4,15 @@ import Script from "next/script";
 import { useEffect, useRef, useState } from 'react';
 import Image from "next/image";
 import { formatTime } from "../../lib/formatTime";
+import { getSpotifyAccessToken } from "../../lib/auth";
+import { loadQueue } from "../../lib/utils";
 
 import BackIcon from "/public/multimediaIcons/back.svg"
 import PlayIcon from "/public/multimediaIcons/play.svg"
 import PauseIcon from "/public/multimediaIcons/pause.svg"
 import NextIcon from "/public/multimediaIcons/next.svg"
+import VolumeIcon from "/public/multimediaIcons/volume.svg"
 
-/* 
-WebPlaybackState Object:
-{
-  context: {
-    uri: 'spotify:album:xxx', // The URI of the context (can be null)
-    metadata: {},             // Additional metadata for the context (can be null)
-  },
-  disallows: {                // A simplified set of restriction controls for
-    pausing: false,           // The current track. By default, these fields
-    peeking_next: false,      // will either be set to false or undefined, which
-    peeking_prev: false,      // indicates that the particular operation is
-    resuming: false,          // allowed. When the field is set to `true`, this
-    seeking: false,           // means that the operation is not permitted. For
-    skipping_next: false,     // example, `skipping_next`, `skipping_prev` and
-    skipping_prev: false      // `seeking` will be set to `true` when playing an
-                              // ad track.
-  },
-  paused: false,  // Whether the current track is paused.
-  position: 0,    // The position_ms of the current track.
-  repeat_mode: 0, // The repeat mode. No repeat mode is 0,
-                  // repeat context is 1 and repeat track is 2.
-  shuffle: false, // True if shuffled, false otherwise.
-  track_window: {
-    current_track: <WebPlaybackTrack>,                              // The track currently on local playback
-    previous_tracks: [<WebPlaybackTrack>, <WebPlaybackTrack>, ...], // Previously played tracks. Number can vary.
-    next_tracks: [<WebPlaybackTrack>, <WebPlaybackTrack>, ...]      // Tracks queued next. Number can vary.
-  }
-}
-
-WebPlaybackTrack Object:
-{
-  uri: "spotify:track:xxxx", // Spotify URI
-  id: "xxxx",                // Spotify ID from URI (can be null)
-  type: "track",             // Content type: can be "track", "episode" or "ad"
-  media_type: "audio",       // Type of file: can be "audio" or "video"
-  name: "Song Name",         // Name of content
-  is_playable: true,         // Flag indicating whether it can be played
-  album: {
-    uri: 'spotify:album:xxxx', // Spotify Album URI
-    name: 'Album Name',
-    images: [
-      { url: "https://image/xxxx" }
-    ]
-  },
-  artists: [
-    { uri: 'spotify:artist:xxxx', name: "Artist Name" }
-  ]
-} 
-
-*/
 
 export default function SpotifyPlayer() {
     const [isPlaying, setIsPlaying] = useState(false); 
@@ -76,65 +29,80 @@ export default function SpotifyPlayer() {
         console.log("SpotifyPlayer Mounted")
 
         window.onSpotifyWebPlaybackSDKReady = () => {
-            const token = localStorage.getItem("spotify_access_token");
-            const player = new window.Spotify.Player({
-              name: 'SmartQueue',
-              getOAuthToken: cb => { cb(token!) },
-              volume: 0.5
-            });
+            const initializePlayer = async () => {
+                const token = await getSpotifyAccessToken();
+                if (!token) {
+                    console.error("No valid access token found");
+                    return;
+                }
 
-            // Turned off cause annoying during dev
-            //playerRef.current = player;
-
-            // Ready
-            player.addListener('ready', ({ device_id } : {device_id:string}) => {
-                const token = localStorage.getItem("spotify_access_token");
-                console.log('Ready with Device ID', device_id);
-                fetch('https://api.spotify.com/v1/me/player', {
-                    method: 'PUT',
-                    body: JSON.stringify({
-                        device_ids: [device_id],
-                        play: false,
-                    }),
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                }).then((res) => {
-                    if (!res.ok) {
-                        console.error('Failed to transfer playback to SDK')
-                    } else {
-                        console.log('Playback transferred to SDK')
-                    }
+                const player = new window.Spotify.Player({
+                  name: 'SmartQueue',
+                  getOAuthToken: cb => { cb(token) },
+                  volume: 0.5
                 });
-            });
 
-            // Not Ready
-            player.addListener('not_ready', ({ device_id } : {device_id:string}) => {
-                console.log('Device ID has gone offline', device_id);
-            });
-            
-            player.addListener('initialization_error', ({ message } : {message:string}) => {
-                console.error(message);
-            });
-          
-            player.addListener('authentication_error', ({ message } : {message:string}) => {
-                console.error(message);
-            });
-          
-            player.addListener('account_error', ({ message } : {message:string}) => {
-                console.error(message);
-            });
-            player.addListener('player_state_changed', (state) => {
-                if(!state) return;
+                // Sets as active device
+                playerRef.current = player;
 
-                setIsPlaying(!state.paused);
-                setCurrentTrack(state.track_window.current_track);
-                setPosition(state.position);
-                setDuration(state.duration);
-            });
+                // Ready
+                player.addListener('ready', async ({ device_id } : {device_id:string}) => {
+                    const token = await getSpotifyAccessToken();
+                    if (!token) {
+                        console.error('No valid access token found');
+                        return;
+                    }
+                    console.log('Ready with Device ID', device_id);
+                    fetch('https://api.spotify.com/v1/me/player', {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            device_ids: [device_id],
+                            play: false,
+                        }),
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                    }).then((res) => {
+                        if (!res.ok) {
+                            console.error('Failed to transfer playback to SDK')
+                        } else {
+                            console.log('Playback transferred to SDK')
+                            // Load the current queue into the database after playback is transferred
+                            loadQueue(token);
+                        }
+                    });
+                });
 
-            player.connect();
+                // Not Ready
+                player.addListener('not_ready', ({ device_id } : {device_id:string}) => {
+                    console.log('Device ID has gone offline', device_id);
+                });
+                
+                player.addListener('initialization_error', ({ message } : {message:string}) => {
+                    console.error(message);
+                });
+              
+                player.addListener('authentication_error', ({ message } : {message:string}) => {
+                    console.error(message);
+                });
+              
+                player.addListener('account_error', ({ message } : {message:string}) => {
+                    console.error(message);
+                });
+                player.addListener('player_state_changed', (state) => {
+                    if(!state) return;
+
+                    setIsPlaying(!state.paused);
+                    setCurrentTrack(state.track_window.current_track);
+                    setPosition(state.position);
+                    setDuration(state.duration);
+                });
+
+                player.connect();
+            };
+
+            initializePlayer();
         };
     }
     , []);
@@ -164,26 +132,47 @@ export default function SpotifyPlayer() {
             }
         };
 
-    }, [isPlaying, currentTrack?.id, duration])
-
-
+    }, [isPlaying, isSeeking, duration])
 
     return (
-        <div>
+        <div className="w-full h-full">
         <Script src="https://sdk.scdn.co/spotify-player.js"/>
 
         {!currentTrack && (
-            <div className="h-[420px] w-[420px] flex items-center justify-center">
+            <div className="h-full w-full flex items-center justify-center">
                 <div className="loader"></div>
             </div>
         )}
 
         {currentTrack && (
             <div className="mt-2 ml-2 mr-2">
-                <Image src={currentTrack.album.images[0].url} alt="Album Artwork" width={420} height={420} className="rounded-lg"/>
-                <div className="">
-                    <h3 className="truncate mt-4 font-bold text-white">{currentTrack.name}</h3>
-                    <p className="text-my-gray">{currentTrack.artists.map((a: { name: string; }) => a.name).join(', ')}</p>
+                <Image src={currentTrack.album.images[0].url} alt="Album Artwork" width={600} height={600} className="rounded-lg"/>
+                <div className="flex w-full justify-between">
+                    <div className="truncate">
+                        <h3 className="truncate mt-4 font-bold text-white">{currentTrack.name}</h3>
+                        <p className="text-my-gray">{currentTrack.artists.map((a: { name: string; }) => a.name).join(', ')}</p>
+                    </div>
+                    <div className="mt-4 group relative">
+                        <div className="bg-my-lighter-black rounded-2xl w-10 h-10 flex items-center justify-center hover:justify-between hover:w-30 hover:px-2 transition-all duration-400 ease-in-out hover:cursor-pointer">
+                            <VolumeIcon alt="volume" width={50} height={50} className="text-white fill-current w-6 h-6"/>
+                            <div className="absolute left-9 opacity-0 group-hover:opacity-100 transition-opacity duration-100 w-20">
+                                <input 
+                                    type="range" 
+                                    min="0" 
+                                    max="1"
+                                    step="0.05"
+                                    defaultValue="0.5"
+                                    className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                                    onChange={(e) => {
+                                        if (playerRef.current) {
+                                            playerRef.current.setVolume(e.target.value);
+                                        }
+                                        }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    
                 </div>
             </div>
         )}

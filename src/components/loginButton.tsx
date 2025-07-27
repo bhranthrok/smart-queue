@@ -1,42 +1,29 @@
-"use client";
+'use client';
 
-import Image from "next/image";
-import { generateCodeVerifier, generateCodeChallenge } from "../../lib/pkce";
+import { supabase } from '../../lib/supabase';
+import Image from 'next/image';
 
-export default function LoginButton({}) {
+export default function LoginButton() {
     const handleLogin = async () => {
-        const clientID = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID!;
-        const redirectUri = `${process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI}/callback`;
-        const verifier = generateCodeVerifier();
-        const challenge = await generateCodeChallenge(verifier)
-
-        console.log("Verifier Stored: ", verifier);
-        localStorage.setItem("spotify_code_verifier", verifier);
-
-        const scope = [
-            "playlist-read-private",
-            "playlist-read-collaborative",
-            "user-read-playback-state",
-            "user-modify-playback-state",
-            "user-read-currently-playing",
-            "streaming",
-            "user-read-playback-position",
-            "user-top-read",
-            "user-read-recently-played",
-        ].join(" ");
-
-        const params = new URLSearchParams ({
-            response_type: "code",
-            client_id: clientID,
-            scope,
-            redirect_uri: redirectUri,
-            code_challenge_method: "S256",
-            code_challenge: challenge
+        await supabase.auth.signInWithOAuth({
+            provider: 'spotify',
+            options: {
+                redirectTo: `${window.location.origin}/auth/callback`, // Optional: where Spotify should redirect back
+                scopes: [
+                    "playlist-read-private",
+                    "playlist-read-collaborative",
+                    "user-read-playback-state",
+                    "user-modify-playback-state",
+                    "user-read-currently-playing",
+                    "streaming",
+                    "user-read-playback-position",
+                    "user-top-read",
+                    "user-read-recently-played"
+                ].join(" "),
+            },
         });
+    };
 
-        window.location.href = `https://accounts.spotify.com/authorize?${params}`;
-    }
-    
     return (
         <div className="h-full w-full flex justify-center">
             <button 
@@ -47,5 +34,5 @@ export default function LoginButton({}) {
                 <p>Sign in with Spotify</p>
             </button>
         </div>
-        );
+    );
 }

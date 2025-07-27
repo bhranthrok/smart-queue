@@ -3,6 +3,8 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { getSpotifyAccessToken } from '../../../../lib/auth';
+import { playThis } from '../../../../lib/utils';
 
 interface Playlist {
     id: string;
@@ -21,9 +23,9 @@ const YourLibrary = ({ setSelectedPlaylist }: YourLibraryProps) => {
     const [initialSelected, setInitialSelected] = useState(false);
 
     const getPlaylists = async () => {
-        const token = localStorage.getItem("spotify_access_token");
+        const token = await getSpotifyAccessToken();
         if (!token) {
-            console.error("No access token found");
+            console.error("No valid access token found");
             return;
         }
 
@@ -46,35 +48,16 @@ const YourLibrary = ({ setSelectedPlaylist }: YourLibraryProps) => {
         }
     };
 
-    const playThis = async (uri: string) => {
-        const token = localStorage.getItem("spotify_access_token");
-        if (!token) {
-            console.error("No access token found");
-            return;
-        }
-        try {
-            const response = await fetch("https://api.spotify.com/v1/me/player/play", {
-                method: "PUT",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ context_uri: uri })
-            });
-            if (!response.ok) {
-                throw new Error(`Error playing playlist: ${response.statusText}`);
-            }
-            console.log("Playing playlist: ", uri);
-        } catch (error) {
-            console.error("Failed to play playlist", error);
-        }
-    };
-
+    // Fetch playlists only on mount
     useEffect(() => {
         getPlaylists();
-        if (!initialSelected && playlists.length > 0) { // Sets initial selected playlist
+    }, []);
+
+    // Handle initial playlist selection when playlists are loaded
+    useEffect(() => {
+        if (!initialSelected && playlists.length > 0) {
             setInitialSelected(true);
-          setSelectedPlaylist(playlists[0].id);
+            setSelectedPlaylist(playlists[0].id);
         }
     }, [playlists, setSelectedPlaylist, initialSelected]);
 
@@ -86,7 +69,7 @@ const YourLibrary = ({ setSelectedPlaylist }: YourLibraryProps) => {
               className="flex items-center hover:bg-my-lighter-black hover:cursor-pointer rounded-lg m-2"
               onClick={() => setSelectedPlaylist(playlist.id)}
             >
-              {playlist.images[0] ? (
+              {playlist && playlist.images[0] ? (
                 <div
                   className="relative w-[60px] h-[60px] mr-4 group"
                   onClick={() => {

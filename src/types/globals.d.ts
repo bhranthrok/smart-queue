@@ -21,6 +21,7 @@ declare global {
       seek: (number) => promise<void>
       setName: (string) => Promise<boolean>
       getCurrentState: () => Promise<WebPlaybackStateObject>
+      setVolume: (number) => Promise<void>
     }
 
     interface PlayerInit {
