@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { getSpotifyAccessToken } from '../../../../lib/auth';
+import { loadQueue } from '../../../../lib/utils';
 
 interface PlaylistDisplayProps {
     playlistId: string;
@@ -108,19 +109,33 @@ const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
             return;
         }
       
-        await fetch("https://api.spotify.com/v1/me/player/play", {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            context_uri: playlistUri,
-            offset: { uri: trackUri },
-            position_ms: 0,
-          }),
-        });
-      };
+        try {
+            const response = await fetch("https://api.spotify.com/v1/me/player/play", {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    context_uri: playlistUri,
+                    offset: { uri: trackUri },
+                    position_ms: 0,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error playing track: ${response.statusText}`);
+            }
+
+            console.log("Playing track in playlist context");
+            console.log("Loading playlist queue into database");
+            // Load the playlist queue into your database
+            await loadQueue(token, playlistUri);
+
+        } catch (error) {
+            console.error("Failed to play track in playlist", error);
+        }
+    };
       
     
     // Updates Playlist Object once a new playlistID is provided

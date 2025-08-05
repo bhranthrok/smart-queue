@@ -13,53 +13,117 @@ interface Track {
  * Plays a Spotify context (playlist, album, etc) given its URI.
  * @param uri Spotify context URI (e.g., playlist, album, track)
  */
-export const playThis = async (uri: string) => {
+export const playThis = async (context_uri: string) => {
+    const uriParts = context_uri.split(":");
+    const context_type = uriParts[1];
+
     const token = await getSpotifyAccessToken();
     if (!token) {
         console.error("No valid access token found");
         return;
     }
+
+    // Determine the request body based on context type
+    let requestBody;
+    if (context_type === "track") {
+        // For single tracks, use uris array
+        requestBody = { uris: [context_uri] };
+    } else {
+        // For contexts (playlist, album, artist), use context_uri
+        requestBody = { context_uri: context_uri };
+    }
+
     try {
         const response = await fetch("https://api.spotify.com/v1/me/player/play", {
             method: "PUT",
             headers: {
                 Authorization: `Bearer ${token}`,
-
+                "Content-Type": "application/json",
             },
-            body: JSON.stringify({ context_uri: uri })
+            body: JSON.stringify(requestBody)
         });
         if (!response.ok) {
             throw new Error(`Error playing context: ${response.statusText}`);
         }
-        console.log("Playing context: ", uri);
+        console.log("Playing context: ", context_uri);
         console.log("Loading New Queue into database")
-        loadQueue(token);
+        loadQueue(token, context_uri);
     } catch (error) {
         console.error("Failed to play context", error);
     }
 };
 
-export const loadQueue = async (token: string) => {
+// As of now this only gets 20 items due to spotify limitations
+// Solution is to load from the context
+export const loadQueue = async (token: string, context_uri: string) => {
     try {
         // First clear the existing queue
         await clearQueue();
 
-        const response = await fetch("https://api.spotify.com/v1/me/player/queue", {
-            method: "GET",
-            headers: {
-                Authorization: `Bearer ${token}`,
+        const uriParts = context_uri.split(":");
+        const context_type = uriParts[1];
+        const context_ID = uriParts[2];
+
+        let response;
+        let tracks = [];
+
+        if (context_type === "track") {
+            // No queue to load for single tracks
+            return;
+        } else if (context_type === "artist") {
+            // Get Artist's Top Tracks
+            response = await fetch(`https://api.spotify.com/v1/artists/${context_ID}/top-tracks`, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    // Content-Type not needed here - we're not sending data
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error fetching artist tracks: ${response.statusText}`);
             }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Error loading queue: ${response.statusText}`);
+
+            const data = await response.json();
+            tracks = data.tracks || [];
+
+        } else if (context_type === "album") {
+            // Get Album Tracks
+            response = await fetch(`https://api.spotify.com/v1/albums/${context_ID}/tracks`, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error fetching album tracks: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            tracks = data.items || [];
+
+        } else if (context_type === "playlist") {
+            // Get Playlist Tracks
+            response = await fetch(`https://api.spotify.com/v1/playlists/${context_ID}/tracks`, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error fetching playlist tracks: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            // For playlists, tracks are nested in item.track
+            tracks = data.items?.map((item: any) => item.track).filter((track: any) => track) || [];
         }
 
-        const data = await response.json();
-        
-        if (data && Array.isArray(data.queue)) {
-            // Add all tracks to the database in one batch
-            await addTracksToQueue(data.queue);
+        // Add tracks to queue if we have any
+        if (tracks.length > 0) {
+            await addTracksToQueue(tracks);
         }
 
         console.log("Queue Loaded");
@@ -81,10 +145,10 @@ const addTracksToQueue = async (tracks: Track[]) => {
         // Prepare all tracks for batch insertion
         const queueData = tracks.map((track, index) => ({
             user_id: user.id,
-            position: index,
+            position: index * 100,
             track_id: track.id,
             track_uri: track.uri,
-            image_url: track.album.images[0].url || null // First image or null
+            image_url: track.album?.images?.[0]?.url || null // Safe navigation for image URL
         }));
 
         const { error } = await supabase
@@ -119,7 +183,7 @@ export const addToQueue = async (track: Track, position: number) => {
                 position: position,
                 track_id: track.id,
                 track_uri: track.uri,
-                image_url: track.album.images[0].url || null // First image or null
+                image_url: track.album?.images?.[0]?.url || null // Safe navigation for image URL
             });
 
         if (error) {
@@ -132,7 +196,7 @@ export const addToQueue = async (track: Track, position: number) => {
     }
 };
 
-const clearQueue = async () => {
+export const clearQueue = async () => {
     try {
         const { data: { user } } = await supabase.auth.getUser();
 

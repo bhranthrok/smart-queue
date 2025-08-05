@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import Image from "next/image";
 import { formatTime } from "../../lib/formatTime";
 import { getSpotifyAccessToken } from "../../lib/auth";
-import { loadQueue } from "../../lib/utils";
+import { loadQueue, clearQueue } from "../../lib/utils";
 
 import BackIcon from "/public/multimediaIcons/back.svg"
 import PlayIcon from "/public/multimediaIcons/play.svg"
@@ -69,7 +69,14 @@ export default function SpotifyPlayer() {
                         } else {
                             console.log('Playback transferred to SDK')
                             // Load the current queue into the database after playback is transferred
-                            loadQueue(token);
+                            player.getCurrentState().then(state => {
+                                if (state) {
+                                    const context_uri = state.context.uri;
+                                    loadQueue(token, context_uri);
+                                } else {
+                                    console.log("Failed to get context: No state detected");
+                                }
+                            })
                         }
                     });
                 });
@@ -77,6 +84,8 @@ export default function SpotifyPlayer() {
                 // Not Ready
                 player.addListener('not_ready', ({ device_id } : {device_id:string}) => {
                     console.log('Device ID has gone offline', device_id);
+
+                    clearQueue(); // Clear queue on device offline
                 });
                 
                 player.addListener('initialization_error', ({ message } : {message:string}) => {
