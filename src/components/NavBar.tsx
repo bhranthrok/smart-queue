@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import SearchBar from './SearchBar';
 import LogOut from '/public/log-out1.svg';
 import { supabase } from '../../lib/supabase';
@@ -49,46 +49,48 @@ export default function NavBar({ signedIn }: { signedIn: boolean }) {
     }
 
     // Debounced search function
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    
     const debouncedSearch = useCallback(
-        (() => {
-            let timeoutId: NodeJS.Timeout;
-            return async (query: string) => {
-                clearTimeout(timeoutId);
-                timeoutId = setTimeout(async () => {
-                    if (query.trim().length === 0) {
-                        setSearchResults(null);
-                        return;
+        async (query: string) => {
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+            
+            timeoutRef.current = setTimeout(async () => {
+                if (query.trim().length === 0) {
+                    setSearchResults(null);
+                    return;
+                }
+                
+                const token = await getSpotifyAccessToken();
+                if (!token) {
+                    console.error("No access token found");
+                    return;
+                }
+                
+                console.log("Searching for: ", query);
+                fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track,artist,album`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`
                     }
-                    
-                    const token = await getSpotifyAccessToken();
-                    if (!token) {
-                        console.error("No access token found");
-                        return;
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error fetching search results: ${response.statusText}`);
                     }
-                    
-                    console.log("Searching for: ", query);
-                    fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track,artist,album`, {
-                        headers: {
-                            Authorization: `Bearer ${token}`
-                        }
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`Error fetching search results: ${response.statusText}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log("Search results: ", data);
-                        setSearchResults(data);
-                    })
-                    .catch(error => {
-                        console.error("Failed to fetch search results", error);
-                    });
-                }, 300); // 300ms delay
-            };
-        })(),
-        []
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Search results: ", data);
+                    setSearchResults(data);
+                })
+                .catch(error => {
+                    console.error("Failed to fetch search results", error);
+                });
+            }, 300); // 300ms delay
+        },
+        [setSearchResults]
     );
 
     // Update search when query changes
