@@ -8,10 +8,12 @@ import SpotifyPlayer from "@/components/spotifyPlayer";
 import LibraryDropdown from "@/components/Pulldown/LibraryDropdown";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import QueueCarousel from "@/components/QueueCarousel";
 
 export default function Home() {
   const [signedIn, setSignedIn] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [currentQueuePosition, setCurrentQueuePosition] = useState(0);
 
   useEffect(() => {
     // Check for existing session
@@ -63,6 +65,10 @@ export default function Home() {
             <LibraryDropdown/>
           } 
         </div>    
+        {/* Queue Carousel spanning full width outside the player container */}
+        {signedIn && 
+          <QueueCarousel currentQueuePosition={currentQueuePosition} />
+        }
       </div>
     
       <div className="fixed ml-50 mt-20 flex justify-center items-center h-screen z-5">
@@ -70,9 +76,10 @@ export default function Home() {
           {!signedIn && <Login/>}
           
           {signedIn && 
-            <>
-              <SpotifyPlayer/>
-            </>
+            <SpotifyPlayer 
+              currentQueuePosition={currentQueuePosition}
+              setCurrentQueuePosition={setCurrentQueuePosition}
+            />
             }
         </div>
       </div>

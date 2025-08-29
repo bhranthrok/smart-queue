@@ -59,7 +59,7 @@ const LibraryDropdown = () => {
 
             {/* Customize */}
             <section className="bg-gradient-to-b from-my-lighter-black via-my-black to-my-black h-full w-1/3 rounded-4xl">
-                <h1 className="text-3xl mt-15 text-center">Customize</h1>
+                <h1 className="text-3xl mt-8 text-center">Customize</h1>
                 <div className="max-h-[60vh] rounded-xl overflow-hidden">
                     {/* <p className="ml-6 mt-3 text-sm text-gray-400">
                         This section is under development. Stay tuned for more features!

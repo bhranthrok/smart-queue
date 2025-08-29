@@ -9,11 +9,21 @@ interface Track {
     uri: string;
 }
 
+// Fisher-Yates shuffle algorithm
+const shuffleArray = <T>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+};
+
 /**
  * Plays a Spotify context (playlist, album, etc) given its URI.
- * @param uri Spotify context URI (e.g., playlist, album, track)
+ * @param uri Spotify context URI (e.g., playlist, album, track), optional skipQueueLoad boolean
  */
-export const playThis = async (context_uri: string) => {
+export const playThis = async (context_uri: string, skipQueueLoad: boolean = false) => {
     const uriParts = context_uri.split(":");
     const context_type = uriParts[1];
 
@@ -36,7 +46,8 @@ export const playThis = async (context_uri: string) => {
     try {
         const response = await fetch("https://api.spotify.com/v1/me/player/play", {
             method: "PUT",
-            headers: {
+            headers:
+            {
                 Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json",
             },
@@ -46,8 +57,10 @@ export const playThis = async (context_uri: string) => {
             throw new Error(`Error playing context: ${response.statusText}`);
         }
         console.log("Playing context: ", context_uri);
-        console.log("Loading New Queue into database")
-        loadQueue(token, context_uri);
+        if (skipQueueLoad == false) {
+            console.log("Loading New Queue into database")
+            loadQueue(token, context_uri);
+        }
     } catch (error) {
         console.error("Failed to play context", error);
     }
@@ -88,45 +101,80 @@ export const loadQueue = async (token: string, context_uri: string) => {
             tracks = data.tracks || [];
 
         } else if (context_type === "album") {
-            // Get Album Tracks
-            response = await fetch(`https://api.spotify.com/v1/albums/${context_ID}/tracks`, {
+            // First get album info for the cover art
+            const albumResponse = await fetch(`https://api.spotify.com/v1/albums/${context_ID}`, {
                 method: "GET",
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
             });
 
-            if (!response.ok) {
-                throw new Error(`Error fetching album tracks: ${response.statusText}`);
+            if (!albumResponse.ok) {
+                throw new Error(`Error fetching album info: ${albumResponse.statusText}`);
             }
 
-            const data = await response.json();
-            tracks = data.items || [];
+            const albumData = await albumResponse.json();
+
+            // Get Album Tracks with pagination
+            let nextUrl = `https://api.spotify.com/v1/albums/${context_ID}/tracks?limit=50`;
+            
+            while (nextUrl) {
+                response = await fetch(nextUrl, {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error fetching album tracks: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                // Add album image to each track
+                const albumTracks = data.items?.map((track: Track) => ({
+                    ...track,
+                    album: {
+                        ...albumData,
+                        images: albumData.images
+                    }
+                })) || [];
+                tracks.push(...albumTracks);
+                nextUrl = data.next;
+            }
 
         } else if (context_type === "playlist") {
-            // Get Playlist Tracks
-            response = await fetch(`https://api.spotify.com/v1/playlists/${context_ID}/tracks`, {
-                method: "GET",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
+            // Get Playlist Tracks with pagination
+            let nextUrl = `https://api.spotify.com/v1/playlists/${context_ID}/tracks?limit=100`;
+            
+            while (nextUrl) {
+                response = await fetch(nextUrl, {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
 
-            if (!response.ok) {
-                throw new Error(`Error fetching playlist tracks: ${response.statusText}`);
+                if (!response.ok) {
+                    throw new Error(`Error fetching playlist tracks: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                // For playlists, tracks are nested in item.track
+                const playlistTracks = data.items?.map((item: { track: Track }) => item.track).filter((track: Track) => track) || [];
+                tracks.push(...playlistTracks);
+                nextUrl = data.next; // Spotify provides the next URL or null
             }
-
-            const data = await response.json();
-            // For playlists, tracks are nested in item.track
-            tracks = data.items?.map((item: any) => item.track).filter((track: any) => track) || [];
         }
 
         // Add tracks to queue if we have any
         if (tracks.length > 0) {
-            await addTracksToQueue(tracks);
+            // Shuffle the tracks before adding to queue
+            const shuffledTracks = shuffleArray([...tracks]);
+            await addTracksToQueue(shuffledTracks);
         }
 
-        console.log("Queue Loaded");
+        console.log(`Queue Loaded Into Database: ${tracks.length} tracks`);
     } catch (error) {
         console.error("Failed to load queue", error);
     }
@@ -141,6 +189,17 @@ const addTracksToQueue = async (tracks: Track[]) => {
             console.error('No authenticated user found');
             return;
         }
+        
+        // Store the queue in local storage with both URI and image URL
+        const queueItems = tracks.map(track => ({
+            uri: track.uri,
+            image_url: track.album?.images?.[0]?.url || null
+        }));
+        localStorage.setItem('queue', JSON.stringify(queueItems));
+        console.log("localStorage Queue Loaded")
+        
+        // Dispatch custom event to notify other components
+        window.dispatchEvent(new CustomEvent('queueUpdated'));
 
         // Prepare all tracks for batch insertion
         const queueData = tracks.map((track, index) => ({
@@ -209,6 +268,8 @@ export const clearQueue = async () => {
             .from('Queues')
             .delete()
             .eq('user_id', user.id);
+
+        localStorage.setItem('queue', '')
 
         if (error) {
             console.error('Error clearing queue:', error);
