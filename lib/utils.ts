@@ -9,6 +9,22 @@ interface Track {
     uri: string;
 }
 
+interface AudioFeatures {
+    id: string;
+    acousticness: number;
+    danceability: number;
+    energy: number;
+    instrumentalness: number;
+    key: number;
+    liveness: number;
+    loudness: number;
+    mode: number;
+    speechiness: number;
+    tempo: number;
+    time_signature: number;
+    valence: number;
+}
+
 // Fisher-Yates shuffle algorithm
 const shuffleArray = <T>(array: T[]): T[] => {
     const shuffled = [...array];
@@ -72,6 +88,21 @@ export const loadQueue = async (token: string, context_uri: string) => {
     try {
         // First clear the existing queue
         await clearQueue();
+
+        // Get currently playing track to ensure it's first in queue
+        let currentlyPlayingUri: string | null = null;
+        try {
+            const currentResponse = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (currentResponse.ok && currentResponse.status !== 204) {
+                const currentData = await currentResponse.json();
+                currentlyPlayingUri = currentData?.item?.uri || null;
+                console.log("Currently playing track:", currentlyPlayingUri);
+            }
+        } catch {
+            console.log("Could not get currently playing track, continuing without it");
+        }
 
         const uriParts = context_uri.split(":");
         const context_type = uriParts[1];
@@ -171,7 +202,7 @@ export const loadQueue = async (token: string, context_uri: string) => {
         if (tracks.length > 0) {
             // Shuffle the tracks before adding to queue
             const shuffledTracks = shuffleArray([...tracks]);
-            await addTracksToQueue(shuffledTracks);
+            await addTracksToQueue(shuffledTracks, currentlyPlayingUri || undefined);
         }
 
         console.log(`Queue Loaded Into Database: ${tracks.length} tracks`);
@@ -180,7 +211,7 @@ export const loadQueue = async (token: string, context_uri: string) => {
     }
 };
 
-const addTracksToQueue = async (tracks: Track[]) => {
+const addTracksToQueue = async (tracks: Track[], currentlyPlayingUri?: string) => {
     try {
         // Get current user ID from Supabase auth
         const { data: { user } } = await supabase.auth.getUser();
@@ -189,26 +220,117 @@ const addTracksToQueue = async (tracks: Track[]) => {
             console.error('No authenticated user found');
             return;
         }
+
+        // Get Spotify access token for audio features API
+        const token = await getSpotifyAccessToken();
+        if (!token) {
+            console.error('No access token available for audio features');
+            return;
+        }
         
+        // Reorganize tracks so currently playing track is first
+        const orderedTracks = [...tracks];
+        if (currentlyPlayingUri) {
+            const currentTrackIndex = tracks.findIndex(track => track.uri === currentlyPlayingUri);
+            if (currentTrackIndex !== -1) {
+                // Remove the currently playing track from its position
+                const currentTrack = orderedTracks.splice(currentTrackIndex, 1)[0];
+                // Add it to the beginning
+                orderedTracks.unshift(currentTrack);
+                console.log(`Moved currently playing track to position 0: ${currentTrack.name}`);
+            }
+        }
+
         // Store the queue in local storage with both URI and image URL
-        const queueItems = tracks.map(track => ({
+        const queueItems = orderedTracks.map(track => ({
             uri: track.uri,
             image_url: track.album?.images?.[0]?.url || null
         }));
         localStorage.setItem('queue', JSON.stringify(queueItems));
-        console.log("localStorage Queue Loaded")
+        console.log("localStorage Queue Loaded with currently playing track first")
         
         // Dispatch custom event to notify other components
         window.dispatchEvent(new CustomEvent('queueUpdated'));
 
-        // Prepare all tracks for batch insertion
-        const queueData = tracks.map((track, index) => ({
-            user_id: user.id,
-            position: index * 100,
-            track_id: track.id,
-            track_uri: track.uri,
-            image_url: track.album?.images?.[0]?.url || null // Safe navigation for image URL
-        }));
+        // Fetch audio features for all tracks (batch process due to 100 ID limit)
+        console.log('Fetching audio features for', orderedTracks.length, 'tracks');
+        const audioFeaturesMap = new Map();
+        
+        // Split track IDs into batches of 100 (Spotify API limit)
+        const trackIds = orderedTracks.map(track => track.id);
+        const batchSize = 100;
+        
+        for (let i = 0; i < trackIds.length; i += batchSize) {
+            const batch = trackIds.slice(i, i + batchSize);
+            const batchIdString = batch.join(',');
+            
+            try {
+                console.log(`Fetching audio features batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(trackIds.length/batchSize)}`);
+                
+                const audioFeaturesResponse = await fetch('/api/audio-features', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        trackIds: batchIdString,
+                        token
+                    })
+                });
+                
+                if (audioFeaturesResponse.ok) {
+                    const audioFeaturesData = await audioFeaturesResponse.json();
+                    // Create a map for quick lookup
+                    audioFeaturesData.audio_features?.forEach((features: AudioFeatures | null) => {
+                        if (features) {
+                            audioFeaturesMap.set(features.id, features);
+                        }
+                    });
+                } else {
+                    const errorData = await audioFeaturesResponse.json().catch(() => ({}));
+                    console.error(`Failed to fetch audio features for batch ${Math.floor(i/batchSize) + 1}:`, {
+                        status: audioFeaturesResponse.status,
+                        statusText: audioFeaturesResponse.statusText,
+                        error: errorData
+                    });
+                }
+            } catch (error) {
+                console.error(`Error fetching audio features for batch ${Math.floor(i/batchSize) + 1}:`, error);
+            }
+            
+            // Add a small delay between batches to avoid rate limiting
+            if (i + batchSize < trackIds.length) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+        
+        console.log(`Fetched audio features for ${audioFeaturesMap.size}/${trackIds.length} tracks`);
+
+        // Prepare all tracks for batch insertion with audio features
+        const queueData = orderedTracks.map((track, index) => {
+            const features = audioFeaturesMap.get(track.id);
+            
+            return {
+                user_id: user.id,
+                position: index * 100,
+                track_id: track.id,
+                track_uri: track.uri,
+                image_url: track.album?.images?.[0]?.url || null,
+                // Audio features (null if not available)
+                acousticness: features?.acousticness ?? null,
+                danceability: features?.danceability ?? null,
+                energy: features?.energy ?? null,
+                instrumentalness: features?.instrumentalness ?? null,
+                key: features?.key ?? null,
+                liveness: features?.liveness ?? null,
+                loudness: features?.loudness ?? null,
+                mode: features?.mode ?? null,
+                speechiness: features?.speechiness ?? null,
+                tempo: features?.tempo ?? null,
+                time_signature: features?.time_signature ?? null,
+                valence: features?.valence ?? null
+            };
+        });
 
         const { error } = await supabase
             .from('Queues')
