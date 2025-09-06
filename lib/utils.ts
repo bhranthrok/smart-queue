@@ -177,6 +177,8 @@ export const reorderQueueAfterTracks = async (currentPosition: number) => {
             .from('Queues')
             .insert(queueData);
 
+        console.log(`✅ Reordered ${reorderedTracks.length} remaining tracks in queue`);
+
     } catch (error) {
         console.error('Failed to reorder queue:', error);
     }
@@ -261,6 +263,8 @@ const performTierUpdate = async (artistId: string, tierChange: number) => {
                 .update({ tier: newTier })
                 .eq('user_id', user.id)
                 .eq('artist_id', artistId);
+                
+            console.log(`🎵 Updated artist tier: ${existingArtist.tier} → ${newTier} (${tierChange > 0 ? '+' : ''}${tierChange})`);
         } else {
             // Artist doesn't exist, add with modified initial tier
             newTier = Math.max(0, Math.min(10, 5 + tierChange));
@@ -272,6 +276,7 @@ const performTierUpdate = async (artistId: string, tierChange: number) => {
                     artist_id: artistId,
                     tier: newTier
                 });
+                
         }
     } catch (error) {
         console.error('Failed to update artist tier:', error);
@@ -290,16 +295,22 @@ export const handleTrackSkip = async (track: Track, position: number, duration: 
     if (!track?.artists?.[0]?.id) return;
 
     const positionSeconds = position / 1000;
+    const progressPercentage = Math.round((position / duration) * 100);
     
     let tierChange: number;
+    let skipType: string;
     if (positionSeconds <= 10) {
         tierChange = -2; // Skip early
+        skipType = 'early';
     } else if (position >= duration - 10000) {
         tierChange = -0.5; // Skip late
+        skipType = 'late';
     } else {
         tierChange = -1; // Regular skip
+        skipType = 'regular';
     }
 
+    console.log(`⏭️ Track skipped ${skipType} (${progressPercentage}%): "${track.name}" by ${track.artists[0].name}`);
     await updateArtistTier(track.artists[0].id, tierChange);
 };
 
@@ -311,6 +322,14 @@ export const playThis = async (context_uri: string, skipQueueLoad: boolean = fal
     const uriParts = context_uri.split(":");
     const context_type = uriParts[1];
 
+    // Always reset queue position when playing something new
+    localStorage.setItem("currentQueuePosition", "0");
+    
+    // Dispatch custom event to notify components of queue position reset
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('queuePositionReset', { detail: 0 }));
+    }
+    
     const token = await getSpotifyAccessToken();
     if (!token) {
         console.error("No valid access token found");

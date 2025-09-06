@@ -2,7 +2,7 @@
 
 import Script from "next/script";
 import { useEffect, useRef, useState, useCallback } from 'react';
-//import Image from "next/image";
+import Image from "next/image";
 import { formatTime } from "../../lib/formatTime";
 import { getSpotifyAccessToken } from "../../lib/auth";
 import { loadQueue, clearQueue, playThis, handleTrackComplete, handleTrackSkip, reorderQueueAfterTracks } from "../../lib/utils";
@@ -28,6 +28,7 @@ export default function SpotifyPlayer({
     const [currentTrack, setCurrentTrack] = useState<Spotify.Track | null>(null);
     const [position, setPosition] = useState(0);
     const [duration, setDuration] = useState(0);
+    const [isQueueEmpty, setIsQueueEmpty] = useState(true);
 
     const [isSeeking, setIsSeeking] = useState(false);
 
@@ -42,6 +43,22 @@ export default function SpotifyPlayer({
 
     // SDK
     useEffect(() => {
+        // Check if queue is empty on mount
+        const checkQueue = () => {
+            const queueStr = localStorage.getItem('queue');
+            const isEmpty = !queueStr || queueStr === '[]' || JSON.parse(queueStr || '[]').length === 0;
+            setIsQueueEmpty(isEmpty);
+        };
+        
+        checkQueue();
+        
+        // Listen for queue changes
+        const handleQueueUpdate = () => {
+            checkQueue();
+        };
+        
+        window.addEventListener('queueUpdated', handleQueueUpdate);
+        
         window.onSpotifyWebPlaybackSDKReady = () => {
             const initializePlayer = async () => {
                 const token = await getSpotifyAccessToken();
@@ -75,6 +92,56 @@ export default function SpotifyPlayer({
                             'Authorization': `Bearer ${token}`,
                         },
                     });
+
+                    // Check what's currently playing and handle queue accordingly
+                    try {
+                        const currentResponse = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        
+                        if (currentResponse.ok && currentResponse.status !== 204) {
+                            const currentData = await currentResponse.json();
+                            const currentContext = currentData?.context?.uri;
+                            
+                            if (currentContext) {
+                                // Something is playing from a context, create queue from current context
+                                console.log('🎵 Found currently playing context, loading queue from:', currentContext);
+                                loadQueue(token, currentContext);
+                            } else {
+                                // Check for existing localStorage queue
+                                const queueStr = localStorage.getItem('queue');
+                                if (queueStr && queueStr !== '[]') {
+                                    try {
+                                        const queue = JSON.parse(queueStr);
+                                        if (queue.length > 0) {
+                                            console.log('🎵 Found existing localStorage queue, playing first track:', queue[0].name);
+                                            playThis(queue[0].uri, true);
+                                            setCurrentQueuePosition(0);
+                                        }
+                                    } catch (error) {
+                                        console.error('Error parsing existing queue:', error);
+                                    }
+                                }
+                            }
+                        } else {
+                            // Nothing currently playing, check for existing queue
+                            const queueStr = localStorage.getItem('queue');
+                            if (queueStr && queueStr !== '[]') {
+                                try {
+                                    const queue = JSON.parse(queueStr);
+                                    if (queue.length > 0) {
+                                        console.log('🎵 Found existing localStorage queue, playing first track:', queue[0].name);
+                                        playThis(queue[0].uri, true);
+                                        setCurrentQueuePosition(0);
+                                    }
+                                } catch (error) {
+                                    console.error('Error parsing existing queue:', error);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error checking current playback:', error);
+                    }
                 });
 
                 // Not Ready
@@ -127,8 +194,12 @@ export default function SpotifyPlayer({
 
             initializePlayer();
         };
+        
+        return () => {
+            window.removeEventListener('queueUpdated', handleQueueUpdate);
+        };
     }
-    , []);
+    , [setCurrentQueuePosition]);
 
     // Duration Update    
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -307,126 +378,144 @@ export default function SpotifyPlayer({
 
     return (
         <div className="w-full h-full flex flex-col">
-            {/* Queue Carousel at the top */}
-            
             <Script src="https://sdk.scdn.co/spotify-player.js"/>
 
-            {/* Your existing player UI */}
+            {/* Loading state */}
             {!currentTrack && (
                 <div className="h-full w-full flex items-center justify-center">
                     <div className="loader"></div>
                 </div>
             )}
 
+            {/* Player UI with fixed positioning */}
             {currentTrack && (
-                <div className="mt-96 ml-2 mr-2">
-                    <div className="flex w-full justify-between">
-                        <div className="truncate">
-                            <h3 className="truncate mt-4 font-bold text-white">{currentTrack.name}</h3>
-                            <p className="text-my-gray">{currentTrack.artists.map((a: { name: string; }) => a.name).join(', ')}</p>
+                <div className="h-full w-full relative flex flex-col">
+                    
+                    {/* Current Track Image - Only show when queue is empty */}
+                    {isQueueEmpty && currentTrack.album?.images?.[0] && (
+                        <div className="absolute left-1/2 transform -translate-x-1/2">
+                            <div className="w-96 h-96 rounded-lg overflow-hidden shadow-2xl">
+                                <Image
+                                    src={currentTrack.album.images[0].url}
+                                    alt={`${currentTrack.album.name} cover`}
+                                    className="w-full h-full object-cover"
+                                    width={600}
+                                    height={600}
+                                    unoptimized={false}
+                                />
+                            </div>
                         </div>
-                        <div className="mt-4 group relative">
-                            <div className="bg-my-lighter-black rounded-2xl w-10 h-10 flex items-center justify-center hover:justify-between hover:w-30 hover:px-2 transition-all duration-400 ease-in-out hover:cursor-pointer">
-                                <VolumeIcon alt="volume" width={50} height={50} className="text-white fill-current w-6 h-6"/>
-                                <div className="absolute left-9 opacity-0 group-hover:opacity-100 transition-opacity duration-100 w-20">
-                                    <input 
-                                        type="range" 
-                                        min="0" 
-                                        max="1"
-                                        step="0.05"
-                                        defaultValue="0.5"
-                                        className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                                        onChange={(e) => {
-                                            if (playerRef.current) {
-                                                playerRef.current.setVolume(e.target.value);
-                                            }
+                    )}
+                    
+                    {/* Unified Player Controls - Track Info, Progress Bar, and Buttons */}
+                    <div className="absolute top-100 left-0 right-0 px-4 flex flex-col">
+                        
+                        {/* Track Info and Volume */}
+                        <div className="flex w-full justify-between items-start">
+                            <div className="truncate flex-1">
+                                <h3 className="truncate font-bold text-white text-lg">{currentTrack.name}</h3>
+                                <p className="text-my-gray">{currentTrack.artists.map((a: { name: string; }) => a.name).join(', ')}</p>
+                            </div>
+                            <div className="group relative">
+                                <div className="bg-my-lighter-black rounded-2xl w-10 h-10 flex items-center justify-center hover:justify-between hover:w-30 hover:px-2 transition-all duration-400 ease-in-out hover:cursor-pointer">
+                                    <VolumeIcon alt="volume" width={50} height={50} className="text-white fill-current w-6 h-6"/>
+                                    <div className="absolute left-9 opacity-0 group-hover:opacity-100 transition-opacity duration-100 w-20">
+                                        <input 
+                                            type="range" 
+                                            min="0" 
+                                            max="1"
+                                            step="0.05"
+                                            defaultValue="0.5"
+                                            className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                                            onChange={(e) => {
+                                                if (playerRef.current) {
+                                                    playerRef.current.setVolume(e.target.value);
+                                                }
                                             }}
-                                    />
+                                        />
+                                    </div>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="mt-1 transition w-full group">
+                            <div className="translate-y-3">
+                                {/* Background gray bar */}
+                                <div className="h-1 bg-gray-600 rounded-full"></div>
+                                {/* White filled bar */}
+                                <div
+                                    className="transition top-1/2 left-0 h-1 bg-white group-hover:bg-my-green rounded-full -translate-y-1"
+                                    style={{ width: `${(position / duration) * 100}%` }}
+                                ></div>
+                            </div>
+                            <input
+                                type="range"
+                                min={0}
+                                max={duration}
+                                value={position}
+                                onChange={(e) => {
+                                    setPosition(Number(e.target.value)); // Update local UI while dragging
+                                    setIsSeeking(true);
+                                }}
+                                onMouseUp={(e) => {
+                                    if (playerRef.current) {
+                                        playerRef.current.seek(Number(e.currentTarget.value));
+                                        setIsSeeking(false);
+                                    }
+                                }}
+                                onTouchEnd={(e) => {
+                                    if (playerRef.current) {
+                                        playerRef.current.seek(Number(e.currentTarget.value));
+                                        setIsSeeking(false);
+                                    }
+                                }}
+                                className="-translate-y-1.25 w-full h-4 appearance-none bg-transparent cursor-pointer relative z-10"
+                                style={{ WebkitAppearance: 'none' }}
+                            />
+                            <div className="flex justify-between text-sm -mt-3">
+                                <p>{formatTime(Math.floor(position/1000))}</p>
+                                <p>{formatTime(Math.floor(duration/1000))}</p>
+                            </div>
+                        </div>
+
+                        {/* Multimedia Buttons */}
+                        <div className="flex items-center justify-center">
+                            <button onClick={handleManualPrevious} className="mr-2 w-12 h-12 rounded-full flex items-center justify-center cursor-pointer">
+                                <BackIcon alt="Back" width={50} height={50} className="text-my-gray fill-current hover:fill-white w-8 h-8 mr-0.5"/>
+                            </button>
+
+                            {/* Pause/Play Buttons */}
+                            {!isPlaying && <button onClick={() => {
+                                if (playerRef.current) {
+                                    playerRef.current.togglePlay();
+                                    setIsPlaying(true);
+                                } else {
+                                    console.warn("Player not initialized");
+                                }}
+                            } className="bg-white w-14 h-14 hover:w-14.5 hover:h-14.5 rounded-full flex items-center justify-center cursor-pointer">
+                                <PlayIcon alt="Play" width={50} height={50} className="w-8 h-8 ml-2"/>
+                            </button>}
+                            
+                            {isPlaying && <button onClick={() => {
+                                if (playerRef.current) {
+                                    playerRef.current.togglePlay();
+                                    setIsPlaying(false);
+                                } else {
+                                    console.warn("Player not initialized");
+                                }}
+                            } className="bg-white w-14 h-14 hover:w-14.5 hover:h-14.5 rounded-full flex items-center justify-center cursor-pointer">
+                                <PauseIcon alt="Pause" width={50} height={50} className="w-8 h-8"/>
+                            </button>}
+
+                            <button onClick={handleManualNext} className="ml-2 w-12 h-12 rounded-full flex items-center justify-center cursor-pointer">
+                                <NextIcon alt="next" width={50} height={50} className="text-my-gray fill-current hover:fill-white w-8 h-8 ml-0.5"/>
+                            </button>
                         </div>
                         
                     </div>
                 </div>
             )}
-
-            {/* Progress Bar*/}
-            
-            <div className="transition w-full group px-4 mt-1 mb-4">
-                <div className="translate-y-3">
-                    {/* Background gray bar */}
-                    <div className="h-1 bg-gray-600 rounded-full"></div>
-                    {/* White filled bar */}
-                    <div
-                    className="transition top-1/2 left-0 h-1 bg-white group-hover:bg-my-green rounded-full -translate-y-1"
-                    style={{ width: `${(position / duration) * 100}%` }}
-                    ></div>
-                </div>
-                <input
-                type="range"
-                min={0}
-                max={duration}
-                value={position}
-                onChange={(e) => {
-                    setPosition(Number(e.target.value)); // Update local UI while dragging
-                    setIsSeeking(true);
-                }}
-                onMouseUp={(e) => {
-                    if (playerRef.current) {
-                    playerRef.current.seek(Number(e.currentTarget.value));
-                    setIsSeeking(false);
-                    }
-                }}
-                onTouchEnd={(e) => {
-                    if (playerRef.current) {
-                    playerRef.current.seek(Number(e.currentTarget.value));
-                    setIsSeeking(false);
-                    }
-                }}
-                className="-translate-y-1.25 w-full h-4 appearance-none bg-transparent cursor-pointer relative z-10"
-                style={{ WebkitAppearance: 'none' }}
-                />
-                <div className="flex justify-between text-sm -mt-3">
-                    <p>{formatTime(Math.floor(position/1000))}</p>
-                    <p>{formatTime(Math.floor(duration/1000))}</p>
-                </div>
-            </div>
-
-
-            {/* Multimedia Buttons*/}
-            <div className="flex items-center justify-center">
-                <button onClick={handleManualPrevious} className="mr-2 w-12 h-12 rounded-full flex items-center justify-center cursor-pointer">
-                    <BackIcon alt="Back" width={50} height={50} className="text-my-gray fill-current hover:fill-white w-8 h-8 mr-0.5"/>
-                </button>
-
-                {/* Pause/Play Buttons */}
-                {!isPlaying && <button onClick={() => {
-                    if (playerRef.current) {
-                        playerRef.current.togglePlay();
-                        setIsPlaying(true);
-                    } else {
-                        console.warn("Player not initialized");
-                    }}
-                    } className="bg-white w-14 h-14 hover:w-14.5 hover:h-14.5 rounded-full flex items-center justify-center cursor-pointer">
-                        <PlayIcon alt="Play" width={50} height={50} className="w-8 h-8 ml-2"/>
-                    </button>}
-                
-                {isPlaying && <button onClick={() => {
-                    if (playerRef.current) {
-                        playerRef.current.togglePlay();
-                        setIsPlaying(false);
-                    } else {
-                        console.warn("Player not initialized");
-                    }}
-                    } className="bg-white w-14 h-14 hover:w-14.5 hover:h-14.5 rounded-full flex items-center justify-center cursor-pointer">
-                        <PauseIcon alt="Pause" width={50} height={50} className="w-8 h-8"/>
-                    </button>}
-
-                <button onClick={handleManualNext} className="ml-2 w-12 h-12 rounded-full flex items-center justify-center cursor-pointer">
-                    <NextIcon alt="next" width={50} height={50} className="text-my-gray fill-current hover:fill-white w-8 h-8 ml-0.5"/>
-                </button>
-            </div>
-
         </div>
     );
 }
