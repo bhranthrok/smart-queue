@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 //import Image from "next/image";
 import { formatTime } from "../../lib/formatTime";
 import { getSpotifyAccessToken } from "../../lib/auth";
-import { loadQueue, clearQueue, playThis } from "../../lib/utils";
+import { loadQueue, clearQueue, playThis, handleTrackComplete, handleTrackSkip, reorderQueueAfterTracks } from "../../lib/utils";
 
 import BackIcon from "/public/multimediaIcons/back.svg"
 import PlayIcon from "/public/multimediaIcons/play.svg"
@@ -36,10 +36,12 @@ export default function SpotifyPlayer({
     const endedRef = useRef(false);
     const lastTrackUriRef = useRef<string | null>(null);
 
+    // Track tier tracking
+    const trackStartTimeRef = useRef<number | null>(null);
+    const currentTrackForTierRef = useRef<Spotify.Track | null>(null);
+
     // SDK
     useEffect(() => {
-        console.log("SpotifyPlayer Mounted")
-
         window.onSpotifyWebPlaybackSDKReady = () => {
             const initializePlayer = async () => {
                 const token = await getSpotifyAccessToken();
@@ -60,11 +62,8 @@ export default function SpotifyPlayer({
                 // Ready
                 player.addListener('ready', async ({ device_id } : {device_id:string}) => {
                     const token = await getSpotifyAccessToken();
-                    if (!token) {
-                        console.error('No valid access token found');
-                        return;
-                    }
-                    console.log('Ready with Device ID', device_id);
+                    if (!token) return;
+                    
                     fetch('https://api.spotify.com/v1/me/player', {
                         method: 'PUT',
                         body: JSON.stringify({
@@ -75,19 +74,11 @@ export default function SpotifyPlayer({
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`,
                         },
-                    }).then((res) => {
-                        if (!res.ok) {
-                            console.error('Failed to transfer playback to SDK')
-                        } else {
-                            console.log('Playback transferred to SDK')
-                        }
                     });
                 });
 
                 // Not Ready
-                player.addListener('not_ready', ({ device_id } : {device_id:string}) => {
-                    console.log('Device ID has gone offline', device_id);
-
+                player.addListener('not_ready', () => {
                     clearQueue(); // Clear queue on device offline
                 });
                 
@@ -111,6 +102,10 @@ export default function SpotifyPlayer({
                     if (lastTrackUriRef.current !== currentUri) {
                         lastTrackUriRef.current = currentUri;
                         endedRef.current = false;
+                        
+                        // Track start time for tier tracking
+                        trackStartTimeRef.current = Date.now();
+                        currentTrackForTierRef.current = state.track_window.current_track;
                     }
 
                     setIsPlaying(!state.paused);
@@ -122,7 +117,6 @@ export default function SpotifyPlayer({
 
                     // Load queue when we first get a valid state with context
                     if (state.context && !queueLoadedRef.current) {
-                        console.log("Loading queue from player state context");
                         queueLoadedRef.current = true;
                         loadQueue(token, state.context.uri);
                     }
@@ -163,11 +157,26 @@ export default function SpotifyPlayer({
 
     }, [isPlaying, isSeeking, duration])
 
-    const playNext = useCallback(() => {
+    const playNext = useCallback(async (isManualSkip = false) => {
+        // Handle tier tracking for manual skips
+        if (isManualSkip && currentTrackForTierRef.current && duration > 0) {
+            // Convert Spotify track to our Track interface
+            const track = {
+                id: currentTrackForTierRef.current.id,
+                name: currentTrackForTierRef.current.name,
+                artists: currentTrackForTierRef.current.artists.map((a: { name: string; uri?: string }) => ({ 
+                    name: a.name, 
+                    id: a.uri?.split(':')[2] || '' 
+                })),
+                album: { images: currentTrackForTierRef.current.album.images },
+                uri: currentTrackForTierRef.current.uri
+            };
+            
+            await handleTrackSkip(track, position, duration);
+        }
+
         const queueStr = localStorage.getItem('queue');
         const parsedQueue = queueStr ? JSON.parse(queueStr) : [];
-        
-        console.log(parsedQueue);
         
         const nextPosition = currentQueuePosition + 1;
         
@@ -175,18 +184,25 @@ export default function SpotifyPlayer({
             const nextTrackUri = parsedQueue[nextPosition].uri; // Access URI from object
             playThis(nextTrackUri, true); // Play the next track from your queue, skipping load queue
             setCurrentQueuePosition(nextPosition);
-            console.log(`Playing track ${nextPosition} of ${parsedQueue.length}`);
+            
+            // Check if we need to reorder the queue (every 3 tracks)
+            reorderQueueAfterTracks(nextPosition).catch(err => 
+                console.error('Failed to reorder queue:', err)
+            );
         } else {
-            console.log("End of queue reached");
             // Loop back to start, IN FUTURE REPLACE WITH NEXT QUEUE PAGE
             if (parsedQueue.length > 0) {
                 const firstTrackUri = parsedQueue[0].uri; // Access URI from object
                 playThis(firstTrackUri, true);
                 setCurrentQueuePosition(0);
-                console.log("Looped back to start of queue");
+                
+                // Check if we need to reorder the queue when looping
+                reorderQueueAfterTracks(0).catch(err => 
+                    console.error('Failed to reorder queue:', err)
+                );
             }
         }
-    }, [currentQueuePosition, setCurrentQueuePosition]);
+    }, [currentQueuePosition, setCurrentQueuePosition, position, duration]);
 
     // Run when position updates and is near the end of the track
     useEffect(() => {
@@ -195,7 +211,22 @@ export default function SpotifyPlayer({
       // Trigger when we get close to the end
       if (duration > 0 && position >= duration - END_THRESHOLD_MS && !endedRef.current) {
         endedRef.current = true;
-        console.log("Song ending, switching to next track");
+
+        // Handle tier tracking for natural track completion (+1)
+        if (currentTrackForTierRef.current) {
+            const track = {
+                id: currentTrackForTierRef.current.id,
+                name: currentTrackForTierRef.current.name,
+                artists: currentTrackForTierRef.current.artists.map((a: { name: string; uri?: string }) => ({ 
+                    name: a.name, 
+                    id: a.uri?.split(':')[2] || '' 
+                })),
+                album: { images: currentTrackForTierRef.current.album.images },
+                uri: currentTrackForTierRef.current.uri
+            };
+            
+            handleTrackComplete(track).catch(err => console.error('Failed to handle track completion:', err));
+        }
 
         // Pause immediately to avoid unwanted audio
         if (playerRef.current && isPlaying) {
@@ -203,10 +234,10 @@ export default function SpotifyPlayer({
           setIsPlaying(false);
         }
 
-        // Switch to next track
+        // Switch to next track (not a manual skip)
         setTimeout(() => {
           try {
-            playNext();
+            playNext(false);
           } catch (err) {
             console.error('playNext failed on track end', err);
           }
@@ -231,7 +262,6 @@ export default function SpotifyPlayer({
                 const prevTrackUri = parsedQueue[prevPosition].uri; // Access URI from object
                 playThis(prevTrackUri, true);
                 setCurrentQueuePosition(prevPosition);
-                console.log(`Playing previous track ${prevPosition} of ${parsedQueue.length}`);
             } else {
                 // If at beginning, go to last track
                 if (parsedQueue.length > 0) {
@@ -239,10 +269,40 @@ export default function SpotifyPlayer({
                     const lastTrackUri = parsedQueue[lastPosition].uri; // Access URI from object
                     playThis(lastTrackUri, true);
                     setCurrentQueuePosition(lastPosition);
-                    console.log("Jumped to end of queue");
                 }
             }
         }
+    };
+
+    // Handler for manual next button click
+    const handleManualNext = () => {
+        playNext(true); // Mark as manual skip
+    };
+
+    // Handler for manual previous button click  
+    const handleManualPrevious = () => {
+        // Only track as skip if we're not just restarting the current song
+        if (position <= 3000) {
+            // This will change tracks, so it's a skip
+            if (currentTrackForTierRef.current && duration > 0) {
+                const track = {
+                    id: currentTrackForTierRef.current.id,
+                    name: currentTrackForTierRef.current.name,
+                    artists: currentTrackForTierRef.current.artists.map((a: { name: string; uri?: string }) => ({ 
+                        name: a.name, 
+                        id: a.uri?.split(':')[2] || '' 
+                    })),
+                    album: { images: currentTrackForTierRef.current.album.images },
+                    uri: currentTrackForTierRef.current.uri
+                };
+                
+                handleTrackSkip(track, position, duration).catch(err => 
+                    console.error('Failed to handle track skip:', err)
+                );
+            }
+        }
+        
+        playPrevious();
     };
 
     return (
@@ -335,7 +395,7 @@ export default function SpotifyPlayer({
 
             {/* Multimedia Buttons*/}
             <div className="flex items-center justify-center">
-                <button onClick={playPrevious} className="mr-2 w-12 h-12 rounded-full flex items-center justify-center cursor-pointer">
+                <button onClick={handleManualPrevious} className="mr-2 w-12 h-12 rounded-full flex items-center justify-center cursor-pointer">
                     <BackIcon alt="Back" width={50} height={50} className="text-my-gray fill-current hover:fill-white w-8 h-8 mr-0.5"/>
                 </button>
 
@@ -362,7 +422,7 @@ export default function SpotifyPlayer({
                         <PauseIcon alt="Pause" width={50} height={50} className="w-8 h-8"/>
                     </button>}
 
-                <button onClick={playNext} className="ml-2 w-12 h-12 rounded-full flex items-center justify-center cursor-pointer">
+                <button onClick={handleManualNext} className="ml-2 w-12 h-12 rounded-full flex items-center justify-center cursor-pointer">
                     <NextIcon alt="next" width={50} height={50} className="text-my-gray fill-current hover:fill-white w-8 h-8 ml-0.5"/>
                 </button>
             </div>
