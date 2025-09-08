@@ -123,6 +123,24 @@ export default function Home() {
           <p className="text-lg leading-relaxed text-theme-text-secondary ml-3 max-w-lg font-light">
             SmartQueue analyzes your listening behavior and uses our intelligent algorithm to queue up the songs you actually want to hear. It learns from your preferences and grows with you—the more you listen, the better it gets at predicting your perfect soundtrack.
           </p>
+          <a 
+            href="https://github.com/bhranthrok/smart-queue" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="mt-4 ml-3 inline-flex items-center gap-1 text-theme-text-secondary hover:text-theme-text-primary transition-colors duration-200 text-sm underline underline-offset-4 decoration-1 hover:decoration-2"
+          >
+            <span>Learn more</span>
+            <svg 
+              width="12" 
+              height="12" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+              className="transition-transform duration-200 hover:translate-x-0.5"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
         </div>}
       </div>
 
