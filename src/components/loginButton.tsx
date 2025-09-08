@@ -28,7 +28,7 @@ export default function LoginButton() {
         <div className="h-full w-full flex justify-center">
             <button 
                 onClick={handleLogin}
-                className="mt-[22vh] rounded-2xl bg-my-green h-16 w-80 text-black font-bold flex items-center justify-center hover:cursor-pointer">
+                className="mt-[22vh] rounded-2xl bg-theme-primary h-16 w-80 text-black font-bold flex items-center justify-center hover:cursor-pointer">
                 
                 <Image src={"/Spotify Logo White.svg"} className="mr-5" alt="Spotify" width={40} height={40}/>
                 <p>Sign in with Spotify</p>

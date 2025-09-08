@@ -84,7 +84,7 @@ export default function QueueCarousel({ currentQueuePosition }: QueueCarouselPro
     return (
         <div className="absolute mt-42 w-full left-0 h-97 z-7 p-5 overflow-hidden">
             {/* Debug info 
-            <div className="absolute top-0 left-0 text-xs text-white z-10">
+            <div className="absolute top-0 left-0 text-xs text-theme-text-primary z-10">
                 Queue: {queue.length} items, Position: {currentQueuePosition}
             </div>*/}
             
@@ -105,7 +105,7 @@ export default function QueueCarousel({ currentQueuePosition }: QueueCarouselPro
                         <div
                             key={index}
                             className={`flex-shrink-0 h-full mx-15 rounded-lg overflow-hidden
-                                ${index === currentQueuePosition ? 'ring-2 ring-my-green scale-110' : ''}
+                                ${index === currentQueuePosition ? 'ring-2 ring-theme-primary scale-110' : ''}
                                 ${index < currentQueuePosition ? 'opacity-50' : ''}
                                 transition-all duration-300`}
                         >
@@ -120,7 +120,7 @@ export default function QueueCarousel({ currentQueuePosition }: QueueCarouselPro
                                 />
                             ) : (
                                 <div className="w-full h-full bg-gray-700 flex items-center justify-center">
-                                    <span className="text-xs text-gray-400">♪</span>
+                                    <span className="text-xs text-theme-text-secondary">♪</span>
                                 </div>
                             )}
                         </div>

@@ -66,7 +66,7 @@ const YourLibrary = ({ setSelectedPlaylist }: YourLibraryProps) => {
           {playlists.map((playlist) => (
             <div
               key={playlist.id}
-              className="flex items-center hover:bg-my-lighter-black hover:cursor-pointer rounded-lg m-2"
+              className="flex items-center hover:bg-theme-bg-card-lighter hover:cursor-pointer rounded-lg m-2"
               onClick={() => setSelectedPlaylist(playlist.id)}
             >
               {playlist && playlist.images[0] ? (
@@ -97,13 +97,13 @@ const YourLibrary = ({ setSelectedPlaylist }: YourLibraryProps) => {
                 </div>
               ) : (
                 <div className="w-12 h-12 bg-gray-300 rounded-md mr-4 flex items-center justify-center">
-                  <span className="text-my-gray text-xs text-center">No Image</span>
+                  <span className="text-theme-text-secondary text-xs text-center">No Image</span>
                 </div>
               )}
       
               <div>
                 <p className="font-normal text-pretty">{playlist.name}</p>
-                <p className="text-sm font-normal text-my-gray">{playlist.tracks.total} songs</p>
+                <p className="text-sm font-normal text-theme-text-secondary">{playlist.tracks.total} songs</p>
               </div>
             </div>
           ))}

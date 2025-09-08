@@ -169,7 +169,7 @@ const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
                         if (!track) return null;
                         
                         return (
-                            <div key={`${track.id}-${index}`} onClick={() => playTrackInPlaylist(track.uri, playlist.uri)} className="flex items-center p-1 hover:bg-my-lighter-black hover:cursor-pointer rounded-lg m-2">
+                            <div key={`${track.id}-${index}`} onClick={() => playTrackInPlaylist(track.uri, playlist.uri)} className="flex items-center p-1 hover:bg-theme-bg-card-lighter hover:cursor-pointer rounded-lg m-2">
                                 {track.album?.images?.[0] && (
                                     <>
                                     <Image
@@ -183,7 +183,7 @@ const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
                                 )}
                                 <div>
                                     <p className="text-sm font-semibold">{track.name}</p>
-                                    <p className="text-xs text-gray-400">{track.artists?.map(artist => artist.name).join(", ") || "Unknown Artist"}</p>
+                                    <p className="text-xs text-theme-text-secondary">{track.artists?.map(artist => artist.name).join(", ") || "Unknown Artist"}</p>
                                 </div>
                             </div>
                         );
@@ -193,7 +193,7 @@ const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
                     {isLoadingMore && (
                         <div className="flex justify-center items-center p-4">
                             <div className="loader"></div>
-                            <span className="ml-2 text-sm text-gray-400">Loading more tracks...</span>
+                            <span className="ml-2 text-sm text-theme-text-secondary">Loading more tracks...</span>
                         </div>
                     )}
                 </div>

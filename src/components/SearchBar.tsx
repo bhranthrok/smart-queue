@@ -25,7 +25,7 @@ const SearchBar = ({onChange, setSearchBarFocused} : SearchBarProps)=> {
                 onChange={(e) => onChange(e.target.value)}
                 onFocus={() => setSearchBarFocused(true)}
                 onBlur={handleBlur}
-                className="search-bar transition flex justify-center px-6 py-2.5 w-[25rem] bg-my-black-accent hover:bg-my-lighter-black text-white rounded-full text-sm focus:outline-none focus:ring-1"
+                className="search-bar transition flex justify-center px-6 py-2.5 w-[25rem] bg-theme-bg-card-accent hover:bg-theme-bg-card-lighter text-theme-text-primary rounded-full text-sm focus:outline-none focus:ring-1"
             />
     );
 };

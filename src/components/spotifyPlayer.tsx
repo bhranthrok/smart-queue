@@ -22,10 +22,9 @@ export default function SpotifyPlayer({
     currentQueuePosition, 
     setCurrentQueuePosition 
 }: SpotifyPlayerProps) {
-    const [isPlaying, setIsPlaying] = useState(false); 
-    const playerRef = useRef<Spotify.Player | null>(null);
-    
-    const [currentTrack, setCurrentTrack] = useState<Spotify.Track | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [volume, setVolume] = useState(0.5);
+    const playerRef = useRef<Spotify.Player | null>(null);    const [currentTrack, setCurrentTrack] = useState<Spotify.Track | null>(null);
     const [position, setPosition] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isQueueEmpty, setIsQueueEmpty] = useState(true);
@@ -40,6 +39,17 @@ export default function SpotifyPlayer({
     // Track tier tracking
     const trackStartTimeRef = useRef<number | null>(null);
     const currentTrackForTierRef = useRef<Spotify.Track | null>(null);
+
+    // Load volume from localStorage on mount
+    useEffect(() => {
+        const savedVolume = localStorage.getItem('smartqueue-volume');
+        if (savedVolume) {
+            const parsedVolume = parseFloat(savedVolume);
+            if (parsedVolume >= 0 && parsedVolume <= 1) {
+                setVolume(parsedVolume);
+            }
+        }
+    }, []);
 
     // SDK
     useEffect(() => {
@@ -70,7 +80,7 @@ export default function SpotifyPlayer({
                 const player = new window.Spotify.Player({
                   name: 'SmartQueue',
                   getOAuthToken: cb => { cb(token) },
-                  volume: 0.5
+                  volume: volume
                 });
 
                 // Sets as active device
@@ -200,6 +210,13 @@ export default function SpotifyPlayer({
         };
     }
     , [setCurrentQueuePosition]);
+
+    // Update player volume when volume state changes
+    useEffect(() => {
+        if (playerRef.current && volume !== null) {
+            playerRef.current.setVolume(volume);
+        }
+    }, [volume]);
 
     // Duration Update    
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -413,23 +430,26 @@ export default function SpotifyPlayer({
                         {/* Track Info and Volume */}
                         <div className="flex w-full justify-between items-start">
                             <div className="truncate flex-1">
-                                <h3 className="truncate font-bold text-white text-lg">{currentTrack.name}</h3>
-                                <p className="text-my-gray">{currentTrack.artists.map((a: { name: string; }) => a.name).join(', ')}</p>
+                                <h3 className="truncate font-bold text-theme-text-primary text-lg">{currentTrack.name}</h3>
+                                <p className="text-theme-text-secondary">{currentTrack.artists.map((a: { name: string; }) => a.name).join(', ')}</p>
                             </div>
                             <div className="group relative">
-                                <div className="bg-my-lighter-black rounded-2xl w-10 h-10 flex items-center justify-center hover:justify-between hover:w-30 hover:px-2 transition-all duration-400 ease-in-out hover:cursor-pointer">
-                                    <VolumeIcon alt="volume" width={50} height={50} className="text-white fill-current w-6 h-6"/>
+                                <div className="bg-theme-bg-card-lighter rounded-2xl w-10 h-10 flex items-center justify-center hover:justify-between hover:w-30 hover:px-2 transition-all duration-400 ease-in-out hover:cursor-pointer">
+                                    <VolumeIcon alt="volume" width={50} height={50} className="text-theme-text-primary fill-current w-6 h-6"/>
                                     <div className="absolute left-9 opacity-0 group-hover:opacity-100 transition-opacity duration-100 w-20">
                                         <input 
                                             type="range" 
                                             min="0" 
                                             max="1"
                                             step="0.05"
-                                            defaultValue="0.5"
+                                            value={volume}
                                             className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
                                             onChange={(e) => {
+                                                const newVolume = parseFloat(e.target.value);
+                                                setVolume(newVolume);
+                                                localStorage.setItem('smartqueue-volume', newVolume.toString());
                                                 if (playerRef.current) {
-                                                    playerRef.current.setVolume(e.target.value);
+                                                    playerRef.current.setVolume(newVolume);
                                                 }
                                             }}
                                         />
@@ -445,7 +465,7 @@ export default function SpotifyPlayer({
                                 <div className="h-1 bg-gray-600 rounded-full"></div>
                                 {/* White filled bar */}
                                 <div
-                                    className="transition top-1/2 left-0 h-1 bg-white group-hover:bg-my-green rounded-full -translate-y-1"
+                                    className="transition top-1/2 left-0 h-1 bg-theme-text-primary group-hover:bg-theme-primary rounded-full -translate-y-1"
                                     style={{ width: `${(position / duration) * 100}%` }}
                                 ></div>
                             </div>
@@ -482,7 +502,7 @@ export default function SpotifyPlayer({
                         {/* Multimedia Buttons */}
                         <div className="flex items-center justify-center">
                             <button onClick={handleManualPrevious} className="mr-2 w-12 h-12 rounded-full flex items-center justify-center cursor-pointer">
-                                <BackIcon alt="Back" width={50} height={50} className="text-my-gray fill-current hover:fill-white w-8 h-8 mr-0.5"/>
+                                <BackIcon alt="Back" width={50} height={50} className="text-theme-text-secondary fill-current hover:fill-theme-text-primary w-8 h-8 mr-0.5"/>
                             </button>
 
                             {/* Pause/Play Buttons */}
@@ -509,7 +529,7 @@ export default function SpotifyPlayer({
                             </button>}
 
                             <button onClick={handleManualNext} className="ml-2 w-12 h-12 rounded-full flex items-center justify-center cursor-pointer">
-                                <NextIcon alt="next" width={50} height={50} className="text-my-gray fill-current hover:fill-white w-8 h-8 ml-0.5"/>
+                                <NextIcon alt="next" width={50} height={50} className="text-theme-text-secondary fill-current hover:fill-theme-text-primary w-8 h-8 ml-0.5"/>
                             </button>
                         </div>
                         

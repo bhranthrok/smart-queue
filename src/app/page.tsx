@@ -92,7 +92,14 @@ export default function Home() {
       </div>
     
       <div className="fixed ml-50 mt-20 flex justify-center items-center h-screen z-5">
-        <div className="flex justify-center w-[450px] bg-gradient-to-b from-neutral-800 via-neutral-900 to-black p-6 h-[85vh] rounded-3xl border border-black shadow-2xl shadow-black/50 backdrop-blur-sm">
+        <div 
+          className="flex justify-center w-[450px] p-6 h-[85vh] rounded-3xl shadow-2xl backdrop-blur-sm"
+          style={{
+            background: 'var(--theme-gradient-player)',
+            border: '1px solid var(--theme-gradient-player-border)',
+            boxShadow: '0 25px 50px -12px var(--theme-gradient-player-shadow)'
+          }}
+        >
           {!signedIn && <Login/>}
           
           {signedIn && 
@@ -107,13 +114,13 @@ export default function Home() {
       <div className="absolute mt-50 ml-180 h-50vh w-30vh">
         {!signedIn &&
         <div className="flex flex-col justify-center h-full max-w-2xl animate-fadeIn">
-          <h1 className="text-8xl font-bold text-white mb-4">
+          <h1 className="text-8xl font-bold text-theme-text-primary mb-4">
             SmartQueue
           </h1>
-          <p className="text-2xl font-light text-gray-300 mb-8 ml-3">
+          <p className="text-2xl font-light text-theme-text-secondary mb-8 ml-3">
             Your Spotify experience reimagined.
           </p>
-          <p className="text-lg leading-relaxed text-gray-500 ml-3 max-w-lg font-light">
+          <p className="text-lg leading-relaxed text-theme-text-secondary ml-3 max-w-lg font-light">
             SmartQueue analyzes your listening behavior and uses our intelligent algorithm to queue up the songs you actually want to hear. It learns from your preferences and grows with you—the more you listen, the better it gets at predicting your perfect soundtrack.
           </p>
         </div>}

@@ -125,21 +125,21 @@ export default function NavBar({ signedIn }: { signedIn: boolean }) {
     };
 
     return (
-        <div className="flex justify-between items-center bg-my-black w-full h-14 fixed z-11">
-            <h1 className="font-semibold text-2xl text-white ml-4">SmartQueue</h1>
+        <div className="flex justify-between items-center bg-theme-bg-card w-full h-14 fixed z-11">
+            <h1 className="font-semibold text-2xl text-theme-text-primary ml-4">SmartQueue</h1>
             
             <div className="absolute left-1/2 transform -translate-x-1/2">
                 {signedIn && (
                     <>
                         <SearchBar setSearchBarFocused={setIsSearchBarFocused} onChange={handleSearch}/>
                         {isSearchBarFocused && (
-                            <div className='search-dropdown absolute h-[45vh] w-[25rem] mt-2 bg-my-black/95 border border-my-black-accent rounded-md shadow-lg overflow-hidden'>
+                            <div className='search-dropdown absolute h-[45vh] w-[25rem] mt-2 bg-theme-bg-card/95 border border-theme-bg-card-accent rounded-md shadow-lg overflow-hidden'>
                                 {/* Filter Buttons */}
                                 <div className='flex items-center gap-2 h-auto w-auto mt-2 mx-2 text-sm'>
                                     <button 
                                         onClick={() => setSearchFilter('tracks')} 
-                                        className={`px-2 py-1 rounded-full hover:bg-my-lighter-black hover:cursor-pointer bg-my-lighter-black ${
-                                            searchFilter === 'tracks' ? 'border border-white' : ''
+                                        className={`px-2 py-1 rounded-full hover:bg-theme-bg-card-lighter hover:cursor-pointer bg-theme-bg-card-lighter ${
+                                            searchFilter === 'tracks' ? 'border border-theme-text-primary' : ''
                                         }`}
                                         tabIndex={0}
                                     >
@@ -147,8 +147,8 @@ export default function NavBar({ signedIn }: { signedIn: boolean }) {
                                     </button>
                                     <button 
                                         onClick={() => setSearchFilter('artists')} 
-                                        className={`px-2 py-1 rounded-full hover:bg-my-lighter-black hover:cursor-pointer bg-my-lighter-black ${
-                                            searchFilter === 'artists' ? 'border border-white' : ''
+                                        className={`px-2 py-1 rounded-full hover:bg-theme-bg-card-lighter hover:cursor-pointer bg-theme-bg-card-lighter ${
+                                            searchFilter === 'artists' ? 'border border-theme-text-primary' : ''
                                         }`}
                                         tabIndex={0}
                                     >
@@ -156,8 +156,8 @@ export default function NavBar({ signedIn }: { signedIn: boolean }) {
                                     </button>
                                     <button 
                                         onClick={() => setSearchFilter('albums')} 
-                                        className={`px-2 py-1 rounded-full hover:bg-my-lighter-black hover:cursor-pointer bg-my-lighter-black ${
-                                            searchFilter === 'albums' ? 'border border-white' : ''
+                                        className={`px-2 py-1 rounded-full hover:bg-theme-bg-card-lighter hover:cursor-pointer bg-theme-bg-card-lighter ${
+                                            searchFilter === 'albums' ? 'border border-theme-text-primary' : ''
                                         }`}
                                         tabIndex={0}
                                     >
@@ -173,7 +173,7 @@ export default function NavBar({ signedIn }: { signedIn: boolean }) {
                                     searchResults[searchFilter].items.map((result, index) => (
                                         <div
                                         key={result.id || index}
-                                        className="p-2 hover:bg-my-lighter-black hover:cursor-pointer"
+                                        className="p-2 hover:bg-theme-bg-card-lighter hover:cursor-pointer"
                                         onClick={() => playThis(result.uri)}>
                                         {searchFilter === 'tracks' && (
                                             <div className="flex items-center gap-2">
@@ -203,7 +203,7 @@ export default function NavBar({ signedIn }: { signedIn: boolean }) {
                                         </div>
                                     ))
                                     )  : searchQuery.trim() !== '' ? (
-                                        <p className="text-center text-white">No results found</p>
+                                        <p className="text-center text-theme-text-primary">No results found</p>
                                     ) : null}
 
                                 </div>
