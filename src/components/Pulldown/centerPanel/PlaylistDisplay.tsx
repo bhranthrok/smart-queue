@@ -203,7 +203,7 @@ const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
                 <div className="flex mt-5 ml-5">
                     <div className="w-[150px] h-[150px] flex-row">
                         <Image
-                        src={(playlist.images && playlist.images.length > 0 && playlist.images[0]?.url) || "/default-playlist.png"}
+                        src={(playlist.images && Array.isArray(playlist.images) && playlist.images.length > 0 && playlist.images[0]?.url) ? playlist.images[0].url : "/default-playlist.png"}
                         alt={playlist.name || "Playlist"}
                         width={300}
                         height={300}
@@ -218,9 +218,9 @@ const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
                 {/* Tracks */}
                 <div className="ml-3 mt-5">
                     {playlist.tracks?.items?.length > 0 ? (
-                        playlist.tracks.items.map(({ track }, index) => {
-                            // Skip null tracks (unavailable tracks)
-                            if (!track || !track.id) {
+                        playlist.tracks.items.map((item, index) => {
+                            // Handle null items or items without track property
+                            if (!item || !item.track || !item.track.id) {
                                 return (
                                     <div key={`unavailable-${index}`} className="flex items-center p-1 rounded-lg m-2 opacity-50">
                                         <div className="w-[40px] h-[40px] mr-4 bg-gray-600 rounded-sm flex items-center justify-center">
@@ -234,11 +234,13 @@ const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
                                 );
                             }
                             
+                            const track = item.track;
+                            
                             return (
                                 <div key={`${track.id}-${index}`} onClick={() => playTrackInPlaylist(track.uri, playlist.uri)} className="flex items-center p-1 hover:bg-theme-bg-card-lighter hover:cursor-pointer rounded-lg m-2">
                                     {(track.album && track.album.images && track.album.images.length > 0 && track.album.images[0]?.url) ? (
                                         <Image
-                                            src={track.album.images[0].url}
+                                            src={track.album.images[0]?.url}
                                             alt={track.name || "Track"}
                                             width={60}
                                             height={60}
