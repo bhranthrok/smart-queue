@@ -179,27 +179,60 @@ export default function NavBar({ signedIn }: { signedIn: boolean }) {
                                         onClick={() => playThis(result.uri)}>
                                         {searchFilter === 'tracks' && (
                                             <div className="flex items-center gap-2">
-                                                {((result as Track).album.images[0]?.url) && (
-                                                    <Image src={(result as Track).album.images[0].url} alt="" width={60} height={60} className="w-10 h-10 rounded-sm" />
+                                                {((result as Track).album?.images?.[0]?.url) && (
+                                                    <Image 
+                                                        src={(result as Track).album.images[0].url} 
+                                                        alt="" 
+                                                        width={60} 
+                                                        height={60} 
+                                                        className="w-10 h-10 rounded-sm"
+                                                        onError={(e) => {
+                                                            e.currentTarget.style.display = 'none';
+                                                        }}
+                                                    />
                                                 )}
-                                                <p>{result.name} by {(result as Track).artists.map((artist) => artist.name).join(", ")}</p>
+                                                <p>
+                                                    {result.name} by {
+                                                        (result as Track).artists?.length > 0 
+                                                            ? (result as Track).artists.map((artist) => artist?.name || 'Unknown Artist').join(", ")
+                                                            : 'Unknown Artist'
+                                                    }
+                                                </p>
                                             </div>
                                         )}
                                         {searchFilter === 'artists' && (
                                             <div className="flex items-center gap-2">
-                                                {((result as Artist).images[2]?.url || (result as Artist).images[0]?.url) && (
-                                                    <Image src={(result as Artist).images[2]?.url || (result as Artist).images[0]?.url} alt="" width={60} height={60} className="w-10 h-10 rounded-full" />
+                                                {((result as Artist).images?.[2]?.url || (result as Artist).images?.[0]?.url) && (
+                                                    <Image 
+                                                        src={(result as Artist).images[2]?.url || (result as Artist).images[0]?.url} 
+                                                        alt="" 
+                                                        width={60} 
+                                                        height={60} 
+                                                        className="w-10 h-10 rounded-full"
+                                                        onError={(e) => {
+                                                            e.currentTarget.style.display = 'none';
+                                                        }}
+                                                    />
                                                 )}
-                                                <p>{(result as Artist).name}</p>
+                                                <p>{(result as Artist).name || 'Unknown Artist'}</p>
                                             </div>
-                                            )}
+                                        )}
 
                                         {searchFilter === 'albums' && (
                                             <div className="flex items-center gap-2">
-                                                {((result as Album).images[0]?.url) && (
-                                                    <Image src={(result as Album).images[0].url} alt="" width={60} height={60} className="w-10 h-10 rounded-sm" />
+                                                {((result as Album).images?.[0]?.url) && (
+                                                    <Image 
+                                                        src={(result as Album).images[0].url} 
+                                                        alt="" 
+                                                        width={60} 
+                                                        height={60} 
+                                                        className="w-10 h-10 rounded-sm"
+                                                        onError={(e) => {
+                                                            e.currentTarget.style.display = 'none';
+                                                        }}
+                                                    />
                                                 )}
-                                                <p>{(result as Album).name}</p>
+                                                <p>{(result as Album).name || 'Unknown Album'}</p>
                                             </div>
                                         )}
                                         </div>

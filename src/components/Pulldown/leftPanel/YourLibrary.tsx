@@ -69,7 +69,7 @@ const YourLibrary = ({ setSelectedPlaylist }: YourLibraryProps) => {
               className="flex items-center hover:bg-theme-bg-card-lighter hover:cursor-pointer rounded-lg m-2"
               onClick={() => setSelectedPlaylist(playlist.id)}
             >
-              {playlist && playlist.images[0] ? (
+              {playlist && playlist.images && playlist.images.length > 0 && playlist.images[0]?.url ? (
                 <div
                   className="relative w-[60px] h-[60px] mr-4 group"
                   onClick={() => {
@@ -82,6 +82,9 @@ const YourLibrary = ({ setSelectedPlaylist }: YourLibraryProps) => {
                     width={60}
                     height={60}
                     className="rounded-md object-cover w-full h-full"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
                   />
                   {/* Overlay on hover */}
                   <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center rounded-md">
@@ -97,7 +100,7 @@ const YourLibrary = ({ setSelectedPlaylist }: YourLibraryProps) => {
                 </div>
               ) : (
                 <div className="w-12 h-12 bg-gray-300 rounded-md mr-4 flex items-center justify-center">
-                  <span className="text-theme-text-secondary text-xs text-center">No Image</span>
+                  <span className="text-theme-text-secondary text-xs text-center">🎵</span>
                 </div>
               )}
       

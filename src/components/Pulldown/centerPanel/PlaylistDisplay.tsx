@@ -149,6 +149,12 @@ const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
     }
     
     const playTrackInPlaylist = async (trackUri: string, playlistUri: string) => {
+        // Add null checks for parameters
+        if (!trackUri || !playlistUri) {
+            console.error("Missing trackUri or playlistUri");
+            return;
+        }
+
         const token = await getSpotifyAccessToken();
         if (!token) {
             console.error("No valid access token found");
@@ -202,22 +208,28 @@ const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
                 {/* Playlist Image and Name */}
                 <div className="flex mt-5 ml-5">
                     <div className="w-[150px] h-[150px] flex-row">
-                        <Image
-                        src={(playlist.images && Array.isArray(playlist.images) && playlist.images.length > 0 && playlist.images[0]?.url) ? playlist.images[0].url : "/default-playlist.png"}
-                        alt={playlist.name || "Playlist"}
-                        width={300}
-                        height={300}
-                        className="rounded-md object-cover w-full h-full"
-                        onError={(e) => {
-                            e.currentTarget.src = "/default-playlist.png";
-                        }}
-                        />
+                        {(playlist.images && Array.isArray(playlist.images) && playlist.images.length > 0 && playlist.images[0]?.url) ? (
+                            <Image
+                                src={playlist.images[0].url}
+                                alt={playlist.name || "Playlist"}
+                                width={300}
+                                height={300}
+                                className="rounded-md object-cover w-full h-full"
+                                onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                }}
+                            />
+                        ) : (
+                            <div className="w-full h-full bg-gray-600 rounded-md flex items-center justify-center">
+                                <span className="text-4xl">🎵</span>
+                            </div>
+                        )}
                     </div>
                     <h1 className="ml-5 font-bold text-3xl truncate">{playlist.name || "Unnamed Playlist"}</h1>
                 </div>
                 {/* Tracks */}
                 <div className="ml-3 mt-5">
-                    {playlist.tracks?.items?.length > 0 ? (
+                    {playlist.tracks?.items && Array.isArray(playlist.tracks.items) && playlist.tracks.items.length > 0 ? (
                         playlist.tracks.items.map((item, index) => {
                             // Handle null items or items without track property
                             if (!item || !item.track || !item.track.id) {
@@ -238,30 +250,32 @@ const PlaylistDisplay = ({ playlistId }: PlaylistDisplayProps) => {
                             
                             return (
                                 <div key={`${track.id}-${index}`} onClick={() => playTrackInPlaylist(track.uri, playlist.uri)} className="flex items-center p-1 hover:bg-theme-bg-card-lighter hover:cursor-pointer rounded-lg m-2">
-                                    {(track.album && track.album.images && track.album.images.length > 0 && track.album.images[0]?.url) ? (
+                                    {(track.album?.images && Array.isArray(track.album.images) && track.album.images.length > 0 && track.album.images[0]?.url) ? (
                                         <Image
-                                            src={track.album.images[0]?.url}
+                                            src={track.album.images[0].url}
                                             alt={track.name || "Track"}
                                             width={60}
                                             height={60}
                                             className="rounded-sm object-cover w-[40px] h-[40px] mr-4"
                                             onError={(e) => {
                                                 e.currentTarget.style.display = 'none';
-                                            e.currentTarget.style.display = 'none';
-                                        }}
-                                    />
-                                ) : (
-                                    <div className="w-[40px] h-[40px] mr-4 bg-gray-600 rounded-sm flex items-center justify-center">
-                                        <span className="text-xs">♪</span>
-                                    </div>
-                                )}
-                                <div>
-                                    <p className="text-sm font-semibold">{track.name || "Unnamed Track"}</p>
-                                    <p className="text-xs text-theme-text-secondary">
-                                        {track.artists?.length > 0 
-                                            ? track.artists.map(artist => artist?.name || "Unknown Artist").join(", ")
-                                            : "Unknown Artist"
-                                        }
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="w-[40px] h-[40px] mr-4 bg-gray-600 rounded-sm flex items-center justify-center">
+                                            <span className="text-xs">♪</span>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="text-sm font-semibold">{track.name || "Unnamed Track"}</p>
+                                        <p className="text-xs text-theme-text-secondary">
+                                            {track.artists?.length > 0 
+                                                ? track.artists
+                                                    .filter(artist => artist && artist.name)
+                                                    .map(artist => artist.name)
+                                                    .join(", ") || "Unknown Artist"
+                                                : "Unknown Artist"
+                                            }
                                     </p>
                                 </div>
                             </div>

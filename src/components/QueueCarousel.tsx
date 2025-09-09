@@ -55,7 +55,7 @@ export default function QueueCarousel({ currentQueuePosition }: QueueCarouselPro
     // Load queue on mount and when currentQueuePosition changes
     useEffect(() => {
         loadQueueFromStorage();
-    }, [currentQueuePosition]);
+    }, [currentQueuePosition, loadQueueFromStorage]);
 
     // Listen for localStorage changes (when queue is updated from other components)
     useEffect(() => {
@@ -79,7 +79,7 @@ export default function QueueCarousel({ currentQueuePosition }: QueueCarouselPro
             window.removeEventListener('storage', handleStorageChange);
             window.removeEventListener('queueUpdated', handleCustomQueueUpdate);
         };
-    }, []);
+    }, [loadQueueFromStorage]);
 
     return (
         <div className="absolute mt-42 w-full left-0 h-97 z-7 p-5 overflow-hidden">
@@ -117,6 +117,9 @@ export default function QueueCarousel({ currentQueuePosition }: QueueCarouselPro
                                     width={600}
                                     height={600}
                                     unoptimized={false}
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                    }}
                                 />
                             ) : (
                                 <div className="w-full h-full bg-gray-700 flex items-center justify-center">

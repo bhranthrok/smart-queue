@@ -314,14 +314,14 @@ export default function SpotifyPlayer({
         if (isManualSkip && currentTrackForTierRef.current && duration > 0) {
             // Convert Spotify track to our Track interface
             const track = {
-                id: currentTrackForTierRef.current.id,
-                name: currentTrackForTierRef.current.name,
-                artists: currentTrackForTierRef.current.artists.map((a: { name: string; uri?: string }) => ({ 
-                    name: a.name, 
-                    id: a.uri?.split(':')[2] || '' 
-                })),
-                album: { images: currentTrackForTierRef.current.album.images },
-                uri: currentTrackForTierRef.current.uri
+                id: currentTrackForTierRef.current?.id || '',
+                name: currentTrackForTierRef.current?.name || 'Unknown Track',
+                artists: currentTrackForTierRef.current?.artists?.map((a: { name: string; uri?: string }) => ({ 
+                    name: a?.name || 'Unknown Artist', 
+                    id: a?.uri?.split(':')[2] || '' 
+                })) || [],
+                album: { images: currentTrackForTierRef.current?.album?.images || [] },
+                uri: currentTrackForTierRef.current?.uri || ''
             };
             
             await handleTrackSkip(track, position, duration);
@@ -367,14 +367,14 @@ export default function SpotifyPlayer({
         // Handle tier tracking for natural track completion (+1)
         if (currentTrackForTierRef.current) {
             const track = {
-                id: currentTrackForTierRef.current.id,
-                name: currentTrackForTierRef.current.name,
-                artists: currentTrackForTierRef.current.artists.map((a: { name: string; uri?: string }) => ({ 
-                    name: a.name, 
-                    id: a.uri?.split(':')[2] || '' 
-                })),
-                album: { images: currentTrackForTierRef.current.album.images },
-                uri: currentTrackForTierRef.current.uri
+                id: currentTrackForTierRef.current?.id || '',
+                name: currentTrackForTierRef.current?.name || 'Unknown Track',
+                artists: currentTrackForTierRef.current?.artists?.map((a: { name: string; uri?: string }) => ({ 
+                    name: a?.name || 'Unknown Artist', 
+                    id: a?.uri?.split(':')[2] || '' 
+                })) || [],
+                album: { images: currentTrackForTierRef.current?.album?.images || [] },
+                uri: currentTrackForTierRef.current?.uri || ''
             };
             
             handleTrackComplete(track).catch(err => console.error('Failed to handle track completion:', err));
@@ -438,14 +438,14 @@ export default function SpotifyPlayer({
             // This will change tracks, so it's a skip
             if (currentTrackForTierRef.current && duration > 0) {
                 const track = {
-                    id: currentTrackForTierRef.current.id,
-                    name: currentTrackForTierRef.current.name,
-                    artists: currentTrackForTierRef.current.artists.map((a: { name: string; uri?: string }) => ({ 
-                        name: a.name, 
-                        id: a.uri?.split(':')[2] || '' 
-                    })),
-                    album: { images: currentTrackForTierRef.current.album.images },
-                    uri: currentTrackForTierRef.current.uri
+                    id: currentTrackForTierRef.current?.id || '',
+                    name: currentTrackForTierRef.current?.name || 'Unknown Track',
+                    artists: currentTrackForTierRef.current?.artists?.map((a: { name: string; uri?: string }) => ({ 
+                        name: a?.name || 'Unknown Artist', 
+                        id: a?.uri?.split(':')[2] || '' 
+                    })) || [],
+                    album: { images: currentTrackForTierRef.current?.album?.images || [] },
+                    uri: currentTrackForTierRef.current?.uri || ''
                 };
                 
                 handleTrackSkip(track, position, duration).catch(err => 
@@ -473,16 +473,19 @@ export default function SpotifyPlayer({
                 <div className="h-full w-full relative flex flex-col">
                     
                     {/* Current Track Image - Only show when queue is empty */}
-                    {isQueueEmpty && currentTrack.album?.images?.[0] && (
+                    {isQueueEmpty && currentTrack?.album?.images?.[0]?.url && (
                         <div className="absolute left-1/2 transform -translate-x-1/2">
                             <div className="w-96 h-96 rounded-lg overflow-hidden shadow-2xl">
                                 <Image
                                     src={currentTrack.album.images[0].url}
-                                    alt={`${currentTrack.album.name} cover`}
+                                    alt={`${currentTrack.album?.name || 'Album'} cover`}
                                     className="w-full h-full object-cover"
                                     width={600}
                                     height={600}
                                     unoptimized={false}
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                    }}
                                 />
                             </div>
                         </div>
@@ -494,8 +497,16 @@ export default function SpotifyPlayer({
                         {/* Track Info and Volume */}
                         <div className="flex w-full justify-between items-start">
                             <div className="truncate flex-1">
-                                <h3 className="truncate font-bold text-theme-text-primary text-lg">{currentTrack.name}</h3>
-                                <p className="text-theme-text-secondary">{currentTrack.artists.map((a: { name: string; }) => a.name).join(', ')}</p>
+                                <h3 className="truncate font-bold text-theme-text-primary text-lg">{currentTrack?.name || 'Unknown Track'}</h3>
+                                <p className="text-theme-text-secondary">
+                                    {currentTrack?.artists && Array.isArray(currentTrack.artists) && currentTrack.artists.length > 0
+                                        ? currentTrack.artists
+                                            .filter((a: { name: string }) => a && a.name)
+                                            .map((a: { name: string }) => a.name)
+                                            .join(', ') || 'Unknown Artist'
+                                        : 'Unknown Artist'
+                                    }
+                                </p>
                             </div>
                             <div className="group relative">
                                 <div className="bg-theme-bg-card-lighter rounded-2xl w-10 h-10 flex items-center justify-center hover:justify-between hover:w-30 hover:px-2 transition-all duration-400 ease-in-out hover:cursor-pointer">
