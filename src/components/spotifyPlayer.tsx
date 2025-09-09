@@ -71,15 +71,48 @@ export default function SpotifyPlayer({
         
         window.onSpotifyWebPlaybackSDKReady = () => {
             const initializePlayer = async () => {
-                const token = await getSpotifyAccessToken();
+                // Check if token exists before attempting to initialize
+                const token = localStorage.getItem('spotify_access_token');
                 if (!token) {
-                    console.error("No valid access token found");
+                    console.log('⏳ No access token in localStorage yet, waiting...');
+                    return;
+                }
+                
+                console.log('🔑 Found access token, initializing SDK...');
+                
+                // Validate token with Spotify API before SDK init
+                try {
+                    const response = await fetch('https://api.spotify.com/v1/me', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    
+                    if (!response.ok) {
+                        console.error('❌ Token validation failed:', response.status);
+                        if (response.status === 401) {
+                            console.error('Token expired or invalid');
+                            return;
+                        }
+                    }
+                    
+                    const userData = await response.json();
+                    console.log('✅ Token validated for user:', userData.display_name);
+                    
+                    if (userData.product !== 'premium') {
+                        console.error('❌ Spotify Premium required. User has:', userData.product);
+                        return;
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Error validating token:', error);
                     return;
                 }
 
                 const player = new window.Spotify.Player({
                   name: 'SmartQueue',
-                  getOAuthToken: cb => { cb(token) },
+                  getOAuthToken: cb => { 
+                    console.log('🎵 SDK requesting token...');
+                    cb(token);
+                  },
                   volume: volume
                 });
 
@@ -209,7 +242,38 @@ export default function SpotifyPlayer({
             window.removeEventListener('queueUpdated', handleQueueUpdate);
         };
     }
-    , [setCurrentQueuePosition]);
+    , [setCurrentQueuePosition, volume]);
+
+    // Watch for token availability and retry SDK initialization
+    useEffect(() => {
+        const checkTokenAndInitialize = () => {
+            const token = localStorage.getItem('spotify_access_token');
+            if (token && !playerRef.current && window.Spotify) {
+                console.log('🔄 Token detected, attempting SDK initialization...');
+                if (window.onSpotifyWebPlaybackSDKReady) {
+                    window.onSpotifyWebPlaybackSDKReady();
+                }
+            }
+        };
+
+        // Check immediately
+        checkTokenAndInitialize();
+
+        // Set up interval to check for token (only for a short period)
+        const tokenCheckInterval = setInterval(() => {
+            checkTokenAndInitialize();
+        }, 1000);
+
+        // Clear interval after 10 seconds to avoid infinite checking
+        const timeoutId = setTimeout(() => {
+            clearInterval(tokenCheckInterval);
+        }, 10000);
+
+        return () => {
+            clearInterval(tokenCheckInterval);
+            clearTimeout(timeoutId);
+        };
+    }, [volume]);
 
     // Update player volume when volume state changes
     useEffect(() => {
