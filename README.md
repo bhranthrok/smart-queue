@@ -2,13 +2,15 @@
 
 Spotify's queue system is extremely underdeveloped, so I decided to create my own. SmartQueue analyzes your listening behavior and dynamically reorders the rest of a playlist so you hear more of what you actually want — without leaving the playlist you chose. It learns from your preferences and grows with you. The more you listen, the better it gets at predicting your perfect soundtrack.
 
-Available now at: https://smart-queue-beta.vercel.app/
-
 <img width="960" height="524" alt="image" src="https://github.com/user-attachments/assets/352cab9e-46b6-4160-ac07-a00a51c84b82" />
 <img width="960" height="524" alt="image" src="https://github.com/user-attachments/assets/7bb5d757-e6e1-4beb-b61e-a33a1f0d5f02" />
 <img width="480" height="262" alt="image" src="https://github.com/user-attachments/assets/3083ad36-7ba7-4b82-b6a2-d421c09fef7e" />
 <img width="480" height="262" alt="image" src="https://github.com/user-attachments/assets/53415610-4230-4b8e-a24d-48f7c2df1c9d" />
 
+## Become a Beta Tester!
+SmartQueue is currently in **closed beta**. If you are interested in trying it out, please contact me with the email address you use with your Spotify account. Either on Discord @Bhranthrok or by email: `luizcauetcastilla@gmail.com`
+
+Once whitelisted you will be able to access it at: https://smart-queue-beta.vercel.app/
 
 ## Notable Features
 - Custom Queue Management (DB + local session storage)
