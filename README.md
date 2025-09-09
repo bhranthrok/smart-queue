@@ -10,7 +10,9 @@ Spotify's queue system is extremely underdeveloped, so I decided to create my ow
 ## Become a Beta Tester!
 SmartQueue is currently in **closed beta**. If you are interested in trying it out, please contact me with the email address you use with your Spotify account. Either on Discord @Bhranthrok or by email: `luizcauetcastilla@gmail.com`
 
-Once whitelisted you will be able to access it at: https://smart-queue-beta.vercel.app/
+Once whitelisted, you will be able to access it at: https://smart-queue-beta.vercel.app/
+
+**Spotify Premium subscription is required.**
 
 ## Notable Features
 - Custom Queue Management (DB + local session storage)
