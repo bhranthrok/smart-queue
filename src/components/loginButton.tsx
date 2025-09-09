@@ -10,15 +10,21 @@ export default function LoginButton() {
             options: {
                 redirectTo: `${window.location.origin}/auth/callback`, // Optional: where Spotify should redirect back
                 scopes: [
+                    "user-read-private",
+                    "user-read-email", 
                     "playlist-read-private",
                     "playlist-read-collaborative",
+                    "playlist-modify-public",
+                    "playlist-modify-private",
                     "user-read-playback-state",
                     "user-modify-playback-state",
                     "user-read-currently-playing",
                     "streaming",
                     "user-read-playback-position",
                     "user-top-read",
-                    "user-read-recently-played"
+                    "user-read-recently-played",
+                    "user-library-read",
+                    "user-library-modify"
                 ].join(" "),
             },
         });
