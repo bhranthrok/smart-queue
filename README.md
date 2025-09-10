@@ -8,7 +8,7 @@ Spotify's queue system is extremely underdeveloped, so I decided to create my ow
 <img width="480" height="262" alt="image" src="https://github.com/user-attachments/assets/53415610-4230-4b8e-a24d-48f7c2df1c9d" />
 
 ## Become a Beta Tester!
-SmartQueue is currently in **closed beta**. If you are interested in trying it out, please contact me with the email address you use with your Spotify account. Either on Discord @Bhranthrok or by email: `luizcauetcastilla@gmail.com`
+SmartQueue is currently in **closed beta**. If you are interested in trying it out, please contact me with the email address associated with your Spotify account. Either on Discord @Bhranthrok or by email: `luizcauetcastilla@gmail.com`
 
 Once whitelisted, you will be able to access it at: https://smart-queue-beta.vercel.app/
 
@@ -57,6 +57,12 @@ SmartQueue optimizes your playlist experience with a few key principles:
 
 ## Troubleshooting
 If you run into any issues while using SmartQueue, most things should be fixed by simply re-selecting your playlist or refreshing the page. If you need additional assistance or have any feedback, feel free to reach out to me on Discord @Bhranthrok.
+
+### Known Issues
+Please be patient with the following issues as I continuously work on their solutions:
+- This app is not designed for mobile usage, which is due to browser and Spotify SDK limitations.
+- When using Mozilla Firefox, it may not detect the end of the current track unless the tab is focused.
+- Previous queue images may persist and get in the way in a few specific scenarios, such as re-opening a session and selecting a new playlist.
 
 # Thank You For Reading!
 p.s. The original idea for this project was to use track metadata (energy, danceability, valence, etc.) to train an AI model that continuously adapts the queue; however, Spotify has deprecated the get-audio-features API endpoint, and there currently is no reliable way of obtaining these metrics. If that ever changes, you'll definitely see some interesting changes to this project!
