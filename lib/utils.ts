@@ -177,6 +177,38 @@ export const reorderQueueAfterTracks = async (currentPosition: number) => {
             .from('Queues')
             .insert(queueData);
 
+        // UPDATE: Also update localStorage with the new order
+        const currentQueueStr = localStorage.getItem('queue');
+        if (currentQueueStr) {
+            try {
+                const currentQueue = JSON.parse(currentQueueStr);
+                
+                // Keep the first (currentPosition + 3) items unchanged
+                const unchangedItems = currentQueue.slice(0, currentPosition + 3);
+                
+                // Add the reordered items
+                const reorderedItems = reorderedTracks.map(track => ({
+                    uri: track.uri,
+                    image_url: track.album?.images?.[0]?.url || null
+                }));
+                
+                // Combine unchanged + reordered
+                const updatedQueue = [...unchangedItems, ...reorderedItems];
+                
+                // Save back to localStorage
+                localStorage.setItem('queue', JSON.stringify(updatedQueue));
+                
+                // Notify components of queue update
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('queueUpdated'));
+                }
+                
+                console.log(`✅ Updated localStorage with ${reorderedTracks.length} reordered tracks`);
+            } catch (error) {
+                console.error('Failed to update localStorage queue:', error);
+            }
+        }
+
         console.log(`✅ Reordered ${reorderedTracks.length} remaining tracks in queue`);
 
     } catch (error) {
@@ -341,8 +373,43 @@ export const playThis = async (context_uri: string, skipQueueLoad: boolean = fal
     if (context_type === "track") {
         // For single tracks, use uris array
         requestBody = { uris: [context_uri] };
+    } else if (context_type === "playlist") {
+        // For playlists, start at a random position
+        try {
+            // First, get the playlist to find out how many tracks it has
+            const context_ID = uriParts[2];
+            const playlistResponse = await fetch(`https://api.spotify.com/v1/playlists/${context_ID}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            if (playlistResponse.ok) {
+                const playlistData = await playlistResponse.json();
+                const totalTracks = playlistData.tracks?.total || 0;
+                
+                if (totalTracks > 1) {
+                    // Generate random position (0 to totalTracks-1)
+                    const randomOffset = Math.floor(Math.random() * totalTracks);
+                    console.log(`🎲 Starting playlist at random position: ${randomOffset}/${totalTracks}`);
+                    
+                    requestBody = {
+                        context_uri: context_uri,
+                        offset: { position: randomOffset }
+                    };
+                } else {
+                    // Fallback for small/empty playlists
+                    requestBody = { context_uri: context_uri };
+                }
+            } else {
+                // Fallback if we can't get playlist info
+                requestBody = { context_uri: context_uri };
+            }
+        } catch (error) {
+            console.error("Failed to get playlist info for random start:", error);
+            // Fallback to normal behavior
+            requestBody = { context_uri: context_uri };
+        }
     } else {
-        // For contexts (playlist, album, artist), use context_uri
+        // For other contexts (album, artist), use context_uri without random offset
         requestBody = { context_uri: context_uri };
     }
 
@@ -368,8 +435,6 @@ export const playThis = async (context_uri: string, skipQueueLoad: boolean = fal
     }
 };
 
-// As of now this only gets 20 items due to spotify limitations
-// Solution is to load from the context
 export const loadQueue = async (token: string, context_uri: string) => {
     try {
         // First clear the existing queue
