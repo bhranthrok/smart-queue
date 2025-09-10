@@ -105,9 +105,9 @@ const LibraryDropdown = () => {
             </section>
 
             {/* Customize */}
-            <section className="bg-gradient-to-b from-theme-bg-card-lighter via-theme-bg-card to-theme-bg-card h-full w-1/3 rounded-4xl">
+            <section className="bg-gradient-to-b from-theme-bg-card-lighter via-theme-bg-card to-theme-bg-card h-full w-1/3 rounded-4xl overflow-hidden">
                 <h1 className="text-3xl mt-8 text-center">Customize</h1>
-                <div className="max-h-[60vh] rounded-xl overflow-hidden">
+                <div className="max-h-[52vh] rounded-xl overflow-y-auto custom-scrollbar">
                   <h1 className="mt-5 ml-6">Themes</h1>
                   <div className="grid grid-cols-3 grid-rows-2 gap-4 px-6 py-2">
                     {themes.map((themeOption, index) => (

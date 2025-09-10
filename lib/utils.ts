@@ -346,6 +346,32 @@ export const handleTrackSkip = async (track: Track, position: number, duration: 
     await updateArtistTier(track.artists[0].id, tierChange);
 };
 
+// Disable repeat mode to give full control to smart queue
+export const disableRepeat = async () => {
+    const token = await getSpotifyAccessToken();
+    if (!token) {
+        console.error("No valid access token found");
+        return;
+    }
+
+    try {
+        const response = await fetch("https://api.spotify.com/v1/me/player/repeat?state=off", {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error disabling repeat: ${response.statusText}`);
+        }
+
+        console.log("🔄 Repeat mode disabled - SmartQueue has full control");
+    } catch (error) {
+        console.error("Failed to disable repeat mode", error);
+    }
+};
+
 /**
  * Plays a Spotify context (playlist, album, etc) given its URI.
  * @param uri Spotify context URI (e.g., playlist, album, track), optional skipQueueLoad boolean

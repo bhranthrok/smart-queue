@@ -91,9 +91,9 @@ export default function Home() {
         }
       </div>
     
-      <div className="fixed ml-50 mt-20 flex justify-center items-center h-screen z-5">
+      <div className="fixed left-[12.5rem] top-[10.5rem] z-5">
         <div 
-          className="flex justify-center w-[450px] p-6 h-[85vh] rounded-3xl shadow-2xl backdrop-blur-sm"
+          className="w-[450px] p-6 h-[85vh] rounded-3xl shadow-2xl backdrop-blur-sm"
           style={{
             background: 'var(--theme-gradient-player)',
             border: '1px solid var(--theme-gradient-player-border)',
@@ -144,7 +144,7 @@ export default function Home() {
         </div>}
       </div>
 
-      {/*
+      {/* rip AI Prompt
       <div className="fixed bottom-[20vh] right-[30vh]"> 
         {signedIn &&
           <Prompt onChange={(val) => {

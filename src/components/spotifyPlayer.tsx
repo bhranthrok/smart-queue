@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Image from "next/image";
 import { formatTime } from "../../lib/formatTime";
 import { getSpotifyAccessToken } from "../../lib/auth";
-import { loadQueue, clearQueue, playThis, handleTrackComplete, handleTrackSkip, reorderQueueAfterTracks } from "../../lib/utils";
+import { loadQueue, clearQueue, playThis, handleTrackComplete, handleTrackSkip, reorderQueueAfterTracks, disableRepeat } from "../../lib/utils";
 
 import BackIcon from "/public/multimediaIcons/back.svg"
 import PlayIcon from "/public/multimediaIcons/play.svg"
@@ -135,6 +135,9 @@ export default function SpotifyPlayer({
                             'Authorization': `Bearer ${token}`,
                         },
                     });
+
+                    // Disable repeat mode to give SmartQueue full control
+                    await disableRepeat();
 
                     // Check what's currently playing and handle queue accordingly
                     try {
@@ -358,7 +361,7 @@ export default function SpotifyPlayer({
 
     // Run when position updates and is near the end of the track
     useEffect(() => {
-      const END_THRESHOLD_MS = 1000;
+      const END_THRESHOLD_MS = 900;
 
       // Trigger when we get close to the end
       if (duration > 0 && position >= duration - END_THRESHOLD_MS && !endedRef.current) {
@@ -380,22 +383,10 @@ export default function SpotifyPlayer({
             handleTrackComplete(track).catch(err => console.error('Failed to handle track completion:', err));
         }
 
-        // Pause immediately to avoid unwanted audio
-        if (playerRef.current && isPlaying) {
-          playerRef.current.togglePlay();
-          setIsPlaying(false);
-        }
-
-        // Switch to next track (not a manual skip)
-        setTimeout(() => {
-          try {
-            playNext(false);
-          } catch (err) {
-            console.error('playNext failed on track end', err);
-          }
-        }, 200);
+        // Let the track finish naturally, then advance queue
+        playNext(false);
       }
-    }, [position, duration, isPlaying, playNext]);
+    }, [position, duration, playNext]);
 
     const playPrevious = () => {
         const queueStr = localStorage.getItem('queue');
